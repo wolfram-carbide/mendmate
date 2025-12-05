@@ -15,7 +15,8 @@ import {
   Circle,
   Download,
   Upload,
-  Loader2
+  Loader2,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -23,6 +24,8 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
+import { useAuth } from '@/hooks/useAuth';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { FormData, PainPoint, Assessment } from '@shared/schema';
 
 const MUSCLES_FRONT: Record<string, { path: string; label: string; group: string }> = {
@@ -1064,6 +1067,7 @@ const STEPS = [
 ];
 
 export default function BodyPainAssessment() {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [view, setView] = useState<'front' | 'back'>('front');
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
@@ -1218,6 +1222,25 @@ export default function BodyPainAssessment() {
             >
               <RotateCcw className="w-4 h-4" />
             </Button>
+            <div className="w-px h-6 bg-border mx-1" />
+            {user && (
+              <Avatar className="h-8 w-8" data-testid="user-avatar">
+                <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || 'User'} />
+                <AvatarFallback className="text-xs">
+                  {user.firstName?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+            )}
+            <a href="/api/logout">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                title="Log out"
+                data-testid="button-logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </a>
           </div>
         </div>
       </header>

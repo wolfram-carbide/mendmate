@@ -1,6 +1,35 @@
-import { pgTable, text, serial, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { sql } from 'drizzle-orm';
+import {
+  index,
+  jsonb,
+  pgTable,
+  timestamp,
+  varchar,
+  serial,
+  integer,
+} from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 export const painPointSchema = z.object({
   x: z.number(),
@@ -29,15 +58,9 @@ export const formDataSchema = z.object({
 export type PainPoint = z.infer<typeof painPointSchema>;
 export type FormData = z.infer<typeof formDataSchema>;
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
-
 export const assessments = pgTable("assessments", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id),
   selectedMuscles: jsonb("selected_muscles").$type<string[]>().notNull(),
   painPoints: jsonb("pain_points").$type<PainPoint[]>().notNull(),
   formData: jsonb("form_data").$type<FormData>().notNull(),
@@ -56,20 +79,15 @@ export const assessmentsRelations = relations(assessments, ({ one }) => ({
   }),
 }));
 
-export const insertUserSchema = z.object({
-  username: z.string().min(1),
-  password: z.string().min(1),
-});
-
 export const insertAssessmentSchema = z.object({
-  userId: z.number().nullable().optional(),
+  userId: z.string().nullable().optional(),
   selectedMuscles: z.array(z.string()),
   painPoints: z.array(painPointSchema),
   formData: formDataSchema,
   analysis: z.any().optional(),
 });
 
+export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Assessment = typeof assessments.$inferSelect;
 export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;

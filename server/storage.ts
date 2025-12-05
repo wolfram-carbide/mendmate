@@ -2,36 +2,40 @@ import {
   users, 
   assessments,
   type User, 
-  type InsertUser, 
+  type UpsertUser,
   type Assessment
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
   getAssessment(id: number): Promise<Assessment | undefined>;
   getAllAssessments(): Promise<Assessment[]>;
-  getAssessmentsByUser(userId: number): Promise<Assessment[]>;
+  getAssessmentsByUser(userId: string): Promise<Assessment[]>;
   createAssessment(assessment: typeof assessments.$inferInsert): Promise<Assessment>;
   deleteAssessment(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
     return user;
   }
 
@@ -44,7 +48,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(assessments).orderBy(desc(assessments.createdAt));
   }
 
-  async getAssessmentsByUser(userId: number): Promise<Assessment[]> {
+  async getAssessmentsByUser(userId: string): Promise<Assessment[]> {
     return await db
       .select()
       .from(assessments)

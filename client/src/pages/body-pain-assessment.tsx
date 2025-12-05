@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { 
   ChevronRight, 
@@ -19,7 +17,6 @@ import {
   Download,
   Upload,
   Loader2,
-  LogOut,
   FileText,
   History,
   Save
@@ -31,8 +28,6 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { useAuth } from '@/hooks/useAuth';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { FormData, PainPoint, Assessment } from '@shared/schema';
 
 const MUSCLES_FRONT: Record<string, { path: string; label: string; group: string }> = {
@@ -1126,7 +1121,6 @@ const STEPS = [
 ];
 
 export default function BodyPainAssessment() {
-  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [view, setView] = useState<'front' | 'back'>('front');
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
@@ -1212,32 +1206,37 @@ export default function BodyPainAssessment() {
   const [isSaved, setIsSaved] = useState(false);
   const { toast } = useToast();
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/assessments', {
+  const saveToHistory = () => {
+    try {
+      const savedHistory = localStorage.getItem('assessmentHistory');
+      const history = savedHistory ? JSON.parse(savedHistory) : [];
+      
+      const newAssessment = {
+        id: Date.now(),
         selectedMuscles,
         painPoints,
         formData,
         analysis: analysisResult,
-      });
-      return response.json();
-    },
-    onSuccess: () => {
+        createdAt: new Date().toISOString(),
+      };
+      
+      history.unshift(newAssessment);
+      localStorage.setItem('assessmentHistory', JSON.stringify(history));
+      
       setIsSaved(true);
-      queryClient.invalidateQueries({ queryKey: ['/api/assessments'] });
       toast({
         title: "Assessment saved",
-        description: "Your assessment has been saved to your account.",
+        description: "Your assessment has been saved to your history.",
       });
-    },
-    onError: () => {
+    } catch (error) {
+      console.error('Failed to save assessment:', error);
       toast({
         title: "Error",
         description: "Failed to save assessment. Please try again.",
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
   
   const exportPDF = async () => {
     setIsExportingPdf(true);
@@ -1358,25 +1357,6 @@ export default function BodyPainAssessment() {
                 <History className="w-4 h-4" />
               </Button>
             </Link>
-            <div className="w-px h-6 bg-border mx-1" />
-            {user && (
-              <Avatar className="h-8 w-8" data-testid="user-avatar">
-                <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || 'User'} />
-                <AvatarFallback className="text-xs">
-                  {user.firstName?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-            )}
-            <a href="/api/logout">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                title="Log out"
-                data-testid="button-logout"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </a>
           </div>
         </div>
       </header>
@@ -1440,7 +1420,7 @@ export default function BodyPainAssessment() {
               </div>
 
               <div className="flex justify-center">
-                <div className="w-full max-w-[140px] h-[210px] sm:max-w-[160px] sm:h-[240px]">
+                <div className="w-full max-w-[160px] h-[240px] sm:max-w-[180px] sm:h-[270px]">
                   <AnatomicalBody
                     muscles={view === 'front' ? MUSCLES_FRONT : MUSCLES_BACK}
                     selectedMuscles={selectedMuscles}
@@ -1534,7 +1514,7 @@ export default function BodyPainAssessment() {
               </div>
 
               <div className="flex justify-center">
-                <div className="w-full max-w-[140px] h-[210px] sm:max-w-[160px] sm:h-[240px]">
+                <div className="w-full max-w-[160px] h-[240px] sm:max-w-[180px] sm:h-[270px]">
                   <AnatomicalBody
                     muscles={view === 'front' ? MUSCLES_FRONT : MUSCLES_BACK}
                     selectedMuscles={selectedMuscles}
@@ -1633,19 +1613,17 @@ export default function BodyPainAssessment() {
               <div className="flex flex-wrap gap-2 justify-end">
                 <Button 
                   variant="default" 
-                  onClick={() => saveMutation.mutate()} 
-                  disabled={saveMutation.isPending || isSaved || !analysisResult}
+                  onClick={saveToHistory} 
+                  disabled={isSaved || !analysisResult}
                   title={!analysisResult ? 'Wait for analysis to complete' : undefined}
                   data-testid="button-save-assessment"
                 >
-                  {saveMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                  ) : isSaved ? (
+                  {isSaved ? (
                     <Check className="w-4 h-4 mr-1" />
                   ) : (
                     <Save className="w-4 h-4 mr-1" />
                   )}
-                  {saveMutation.isPending ? 'Saving...' : isSaved ? 'Saved' : !analysisResult ? 'Analyzing...' : 'Save to Account'}
+                  {isSaved ? 'Saved' : !analysisResult ? 'Analyzing...' : 'Save to History'}
                 </Button>
                 <Button variant="outline" onClick={exportJSON} data-testid="button-download-json">
                   <Download className="w-4 h-4 mr-1" /> JSON

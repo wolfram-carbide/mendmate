@@ -1,10 +1,10 @@
 # Body Pain Assessment Application
 
 ## Overview
-An interactive body pain assessment tool that helps users track and document their pain locations, intensity, and related symptoms. The application provides personalized analysis and recommendations based on user input.
+An interactive body pain assessment tool that helps users track and document their pain locations, intensity, and related symptoms. The application provides AI-powered analysis and personalized recommendations using Claude.
 
 ## Current State
-- **Status**: Full-Featured MVP
+- **Status**: Full-Featured MVP (No Authentication Required)
 - **Last Updated**: December 2024
 
 ## Project Architecture
@@ -13,65 +13,58 @@ An interactive body pain assessment tool that helps users track and document the
 - **Framework**: React with TypeScript
 - **Styling**: Tailwind CSS with shadcn/ui components
 - **Routing**: wouter (/, /history)
-- **State Management**: React Query + localStorage for persistence
+- **State Management**: localStorage for persistence (no auth required)
 
 ### Backend (server/)
 - **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL via Drizzle ORM
-- **Storage**: DatabaseStorage with user-scoped assessments
-- **Authentication**: Replit OAuth (OIDC)
-- **API**: RESTful endpoints for assessment CRUD operations
+- **AI Integration**: Anthropic Claude via Replit AI Integrations
+- **PDF Generation**: pdfmake for medical report exports
+- **API**: RESTful endpoints for AI analysis and PDF export
 
 ### Shared (shared/)
-- **Schema**: Drizzle ORM tables + Zod schemas for type validation
-- **Types**: TypeScript interfaces for User, Assessment, FormData, PainPoint
+- **Schema**: Zod schemas for type validation
+- **Types**: TypeScript interfaces for FormData, PainPoint, Assessment
 
 ## Key Features
-1. **Interactive Body Diagrams** - SVG-based front and back anatomical views with clickable muscle groups
+1. **Interactive Body Diagrams** - SVG-based front and back anatomical views with clickable muscle groups (scaled 160-180px for easy interaction)
 2. **Paint Mode** - Draw pain points directly on body diagrams with adjustable brush sizes
 3. **Pain Assessment Form** - Comprehensive intake form with pain characteristics, history, triggers, and goals
-4. **Analysis Engine** - Local analysis based on user input (no external APIs required)
+4. **AI Analysis** - Claude-powered analysis with detailed recommendations (uses Replit AI Integrations)
 5. **Export Options** - JSON export, PDF medical report generation via pdfmake
 6. **Auto-save** - Automatic localStorage persistence during assessment
-7. **User Authentication** - Replit OAuth for secure cross-device access
-8. **Assessment History** - Timeline view with pain trends, statistics, and comparison
-9. **PDF Reports** - Professional medical reports with pain summaries and recommendations
+7. **Assessment History** - Timeline view with pain trends, statistics, and comparison
+8. **PDF Reports** - Professional medical reports with pain summaries and recommendations
 
 ## Pages
-- `/` - Main assessment wizard (authenticated)
-- `/history` - Assessment history timeline (authenticated)
-- Landing page for unauthenticated users
+- `/` - Main assessment wizard (works immediately, no login required)
+- `/history` - Assessment history timeline (reads from localStorage)
 
-## Security
-- Replit OAuth for user authentication
-- Session cookies with secure flag in production
-- User-scoped data access (users can only see their own assessments)
-- All sensitive data (SESSION_SECRET, DATABASE_URL) are stored as environment secrets
-- No API keys exposed in frontend
+## Data Storage
+- All assessments stored in browser localStorage under key 'assessmentHistory'
+- No database required for user data - works offline after initial load
+- Data persists in the same browser but not across devices
 
-## API Endpoints
-- `GET /api/auth/user` - Get current user (null if unauthenticated)
-- `GET /api/assessments` - List user's assessments
-- `GET /api/assessments/:id` - Get single assessment (user-scoped)
-- `POST /api/assessments` - Create new assessment
-- `DELETE /api/assessments/:id` - Delete assessment (user-scoped)
-- `POST /api/assessments/:id/pdf` - Generate PDF for saved assessment
-- `POST /api/assessments/export-pdf` - Generate PDF from request body
+## API Endpoints (No Authentication Required)
+- `POST /api/analyze` - AI-powered pain analysis using Claude
+- `POST /api/assessments/export-pdf` - Generate PDF report from assessment data
 
-## Database Schema
-- `users` - User profiles from Replit auth (id, email, firstName, lastName, profileImageUrl)
-- `assessments` - Pain assessments linked to users (selectedMuscles, painPoints, formData, analysis)
-- `sessions` - Express sessions for auth persistence
+## Design Theme: Warm Professional Medical
+- Soft cream/ivory backgrounds for comfort
+- Warm gray text tones for readability
+- Muted earth/sage accent colors
+- Softer borders and subtle shadows
+- Medical-grade color coding for pain intensity (green to red gradient)
 
 ## Design Decisions
-- Body diagrams scaled to max-w-[140px] on mobile, max-w-[160px] on desktop for comfortable interaction
-- Medical-grade color coding for pain intensity (green to red gradient)
+- Body diagrams scaled to max-w-[160px] on mobile, max-w-[180px] on desktop for comfortable interaction
 - Step-by-step wizard interface for guided assessment flow
 - Dark mode support through Tailwind CSS class strategy
 - Save button disabled until analysis completes (prevents incomplete data)
 - History page shows pain trends with visual bar chart
+- No authentication required - immediate access for all users
 
 ## User Preferences
-- Clean, professional medical UI
+- Clean, professional medical UI with warm, approachable aesthetic
 - Responsive design for mobile and desktop
 - Accessible color contrasts and clear labels
+- Works immediately without any login or signup

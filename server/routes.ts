@@ -131,7 +131,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/assessments/export-pdf", isAuthenticated, async (req: any, res) => {
+  app.post("/api/assessments/export-pdf", async (req: any, res) => {
     try {
       const { selectedMuscles, painPoints, formData, analysis } = req.body;
       

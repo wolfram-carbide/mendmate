@@ -16,7 +16,8 @@ import {
   Download,
   Upload,
   Loader2,
-  LogOut
+  LogOut,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -1148,6 +1149,43 @@ export default function BodyPainAssessment() {
     URL.revokeObjectURL(a.href);
   };
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  
+  const exportPDF = async () => {
+    setIsExportingPdf(true);
+    try {
+      const response = await fetch('/api/assessments/export-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          selectedMuscles,
+          painPoints,
+          formData,
+          analysis: analysisResult,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pain-assessment-${new Date().toISOString().split('T')[0]}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const importJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1494,9 +1532,19 @@ export default function BodyPainAssessment() {
               <Button variant="secondary" onClick={() => setStep(3)} data-testid="button-back-step4">
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
               </Button>
-              <Button onClick={exportJSON} data-testid="button-download-assessment">
-                <Download className="w-4 h-4 mr-1" /> Download Report
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={exportJSON} data-testid="button-download-json">
+                  <Download className="w-4 h-4 mr-1" /> JSON
+                </Button>
+                <Button onClick={exportPDF} disabled={isExportingPdf} data-testid="button-download-pdf">
+                  {isExportingPdf ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4 mr-1" />
+                  )}
+                  {isExportingPdf ? 'Generating...' : 'PDF Report'}
+                </Button>
+              </div>
             </div>
           </div>
         )}

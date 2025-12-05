@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertAssessmentSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { z } from "zod";
+import { generatePdfBuffer } from "./pdfGenerator";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -94,6 +95,63 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete assessment" });
+    }
+  });
+
+  app.post("/api/assessments/:id/pdf", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid assessment ID" });
+      }
+      const assessment = await storage.getAssessment(id);
+      if (!assessment) {
+        return res.status(404).json({ error: "Assessment not found" });
+      }
+      const userId = req.user.claims.sub;
+      if (assessment.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const pdfBuffer = await generatePdfBuffer({
+        selectedMuscles: assessment.selectedMuscles as string[],
+        painPoints: assessment.painPoints as any[],
+        formData: assessment.formData as any,
+        analysis: assessment.analysis as any,
+        createdAt: assessment.createdAt,
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="pain-assessment-${id}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  });
+
+  app.post("/api/assessments/export-pdf", isAuthenticated, async (req: any, res) => {
+    try {
+      const { selectedMuscles, painPoints, formData, analysis } = req.body;
+      
+      if (!formData) {
+        return res.status(400).json({ error: "Assessment data is required" });
+      }
+
+      const pdfBuffer = await generatePdfBuffer({
+        selectedMuscles: selectedMuscles || [],
+        painPoints: painPoints || [],
+        formData,
+        analysis,
+        createdAt: new Date(),
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="pain-assessment.pdf"');
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ error: "Failed to generate PDF" });
     }
   });
 

@@ -951,6 +951,7 @@ interface AIAnalysisProps {
 function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedAnalysis }: AIAnalysisProps) {
   const [isLoading, setIsLoading] = useState(!cachedAnalysis);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(cachedAnalysis);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (cachedAnalysis) {
@@ -959,21 +960,67 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
       return;
     }
 
-    const timer = setTimeout(() => {
-      const result = generateMockAnalysis(selectedMuscles, formData);
-      setAnalysis(result);
-      onComplete(result);
-      setIsLoading(false);
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [cachedAnalysis, selectedMuscles, formData, onComplete]);
+    const analyzeWithAI = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      const allMuscles = { ...MUSCLES_FRONT, ...MUSCLES_BACK };
+      const muscleLabels = selectedMuscles.map(m => allMuscles[m]?.label || m);
+      
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            selectedMuscles,
+            painPoints,
+            formData,
+            muscleLabels,
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to get AI analysis');
+        }
+        
+        const result = await response.json();
+        
+        // Ensure the result has all required fields with defaults
+        const analysisResult: AnalysisResult = {
+          summary: result.summary || '',
+          urgency: result.urgency || 'moderate',
+          urgencyMessage: result.urgencyMessage || '',
+          possibleConditions: result.possibleConditions || [],
+          avoid: result.avoid || [],
+          safeToTry: result.safeToTry || [],
+          timeline: result.timeline || '',
+          nextSteps: result.nextSteps || [],
+          experts: result.experts || [],
+        };
+        
+        setAnalysis(analysisResult);
+        onComplete(analysisResult);
+      } catch (err) {
+        console.error('AI analysis error:', err);
+        // Fallback to local analysis if AI fails
+        const fallbackResult = generateMockAnalysis(selectedMuscles, formData);
+        setAnalysis(fallbackResult);
+        onComplete(fallbackResult);
+        setError('AI analysis unavailable. Showing basic analysis.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    analyzeWithAI();
+  }, [cachedAnalysis, selectedMuscles, painPoints, formData, onComplete]);
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
-        <Loader2 className="w-8 h-8 text-destructive animate-spin" />
-        <p className="text-sm text-muted-foreground">Analyzing your assessment...</p>
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <p className="text-sm text-muted-foreground">AI is analyzing your assessment...</p>
+        <p className="text-xs text-muted-foreground">This may take a moment</p>
       </div>
     );
   }
@@ -988,6 +1035,11 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
 
   return (
     <div className="space-y-5" data-testid="analysis-results">
+      {error && (
+        <div className="rounded-lg p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm">
+          {error}
+        </div>
+      )}
       <div className={`rounded-lg p-4 border ${urgencyColors[analysis.urgency]}`}>
         <div className="flex items-center gap-2 font-semibold mb-1">
           <AlertCircle className="w-4 h-4" />

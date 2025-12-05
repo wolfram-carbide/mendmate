@@ -1,37 +1,45 @@
-import { type User, type InsertUser } from "@shared/schema";
+import { type Assessment, type InsertAssessment } from "@shared/schema";
 import { randomUUID } from "crypto";
 
-// modify the interface with any CRUD methods
-// you might need
-
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getAssessment(id: string): Promise<Assessment | undefined>;
+  getAllAssessments(): Promise<Assessment[]>;
+  createAssessment(assessment: InsertAssessment): Promise<Assessment>;
+  deleteAssessment(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private assessments: Map<string, Assessment>;
 
   constructor() {
-    this.users = new Map();
+    this.assessments = new Map();
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getAssessment(id: string): Promise<Assessment | undefined> {
+    return this.assessments.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getAllAssessments(): Promise<Assessment[]> {
+    return Array.from(this.assessments.values()).sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createAssessment(insertAssessment: InsertAssessment): Promise<Assessment> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const assessment: Assessment = { 
+      ...insertAssessment, 
+      id,
+      createdAt: new Date().toISOString()
+    };
+    this.assessments.set(id, assessment);
+    return assessment;
+  }
+
+  async deleteAssessment(id: string): Promise<boolean> {
+    return this.assessments.delete(id);
   }
 }
 

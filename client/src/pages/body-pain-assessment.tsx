@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 import { 
   ChevronRight, 
   ChevronLeft, 
@@ -17,8 +20,11 @@ import {
   Upload,
   Loader2,
   LogOut,
-  FileText
+  FileText,
+  History,
+  Save
 } from 'lucide-react';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -1137,6 +1143,7 @@ export default function BodyPainAssessment() {
     });
     setAnalysisResult(null);
     setStep(1);
+    setIsSaved(false);
     localStorage.removeItem('painAssessment');
   };
 
@@ -1150,6 +1157,35 @@ export default function BodyPainAssessment() {
   };
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const { toast } = useToast();
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/assessments', {
+        selectedMuscles,
+        painPoints,
+        formData,
+        analysis: analysisResult,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsSaved(true);
+      queryClient.invalidateQueries({ queryKey: ['/api/assessments'] });
+      toast({
+        title: "Assessment saved",
+        description: "Your assessment has been saved to your account.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save assessment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
   
   const exportPDF = async () => {
     setIsExportingPdf(true);
@@ -1260,6 +1296,16 @@ export default function BodyPainAssessment() {
             >
               <RotateCcw className="w-4 h-4" />
             </Button>
+            <Link href="/history">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                title="Assessment History"
+                data-testid="button-history"
+              >
+                <History className="w-4 h-4" />
+              </Button>
+            </Link>
             <div className="w-px h-6 bg-border mx-1" />
             {user && (
               <Avatar className="h-8 w-8" data-testid="user-avatar">
@@ -1528,21 +1574,37 @@ export default function BodyPainAssessment() {
               />
             </Card>
 
-            <div className="flex justify-between gap-4">
+            <div className="flex flex-col sm:flex-row justify-between gap-4">
               <Button variant="secondary" onClick={() => setStep(3)} data-testid="button-back-step4">
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
               </Button>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Button 
+                  variant="default" 
+                  onClick={() => saveMutation.mutate()} 
+                  disabled={saveMutation.isPending || isSaved || !analysisResult}
+                  title={!analysisResult ? 'Wait for analysis to complete' : undefined}
+                  data-testid="button-save-assessment"
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : isSaved ? (
+                    <Check className="w-4 h-4 mr-1" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-1" />
+                  )}
+                  {saveMutation.isPending ? 'Saving...' : isSaved ? 'Saved' : !analysisResult ? 'Analyzing...' : 'Save to Account'}
+                </Button>
                 <Button variant="outline" onClick={exportJSON} data-testid="button-download-json">
                   <Download className="w-4 h-4 mr-1" /> JSON
                 </Button>
-                <Button onClick={exportPDF} disabled={isExportingPdf} data-testid="button-download-pdf">
+                <Button variant="outline" onClick={exportPDF} disabled={isExportingPdf} data-testid="button-download-pdf">
                   {isExportingPdf ? (
                     <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                   ) : (
                     <FileText className="w-4 h-4 mr-1" />
                   )}
-                  {isExportingPdf ? 'Generating...' : 'PDF Report'}
+                  {isExportingPdf ? 'Generating...' : 'PDF'}
                 </Button>
               </div>
             </div>

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import BodyPainAssessment from "@/pages/body-pain-assessment";
+import AssessmentHistory from "@/pages/assessment-history";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
@@ -27,6 +28,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={BodyPainAssessment} />
+          <Route path="/history" component={AssessmentHistory} />
         </>
       )}
       <Route component={NotFound} />

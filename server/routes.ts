@@ -20,7 +20,11 @@ export async function registerRoutes(
 
   app.get("/api/assessments/:id", async (req, res) => {
     try {
-      const assessment = await storage.getAssessment(req.params.id);
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid assessment ID" });
+      }
+      const assessment = await storage.getAssessment(id);
       if (!assessment) {
         return res.status(404).json({ error: "Assessment not found" });
       }
@@ -39,13 +43,18 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid assessment data", details: error.errors });
       }
+      console.error("Failed to create assessment:", error);
       res.status(500).json({ error: "Failed to create assessment" });
     }
   });
 
   app.delete("/api/assessments/:id", async (req, res) => {
     try {
-      const success = await storage.deleteAssessment(req.params.id);
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid assessment ID" });
+      }
+      const success = await storage.deleteAssessment(id);
       if (!success) {
         return res.status(404).json({ error: "Assessment not found" });
       }

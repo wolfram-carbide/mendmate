@@ -1,46 +1,66 @@
-import { type Assessment, type InsertAssessment } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { 
+  users, 
+  assessments,
+  type User, 
+  type InsertUser, 
+  type Assessment
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
-  getAssessment(id: string): Promise<Assessment | undefined>;
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  getAssessment(id: number): Promise<Assessment | undefined>;
   getAllAssessments(): Promise<Assessment[]>;
-  createAssessment(assessment: InsertAssessment): Promise<Assessment>;
-  deleteAssessment(id: string): Promise<boolean>;
+  getAssessmentsByUser(userId: number): Promise<Assessment[]>;
+  createAssessment(assessment: typeof assessments.$inferInsert): Promise<Assessment>;
+  deleteAssessment(id: number): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private assessments: Map<string, Assessment>;
-
-  constructor() {
-    this.assessments = new Map();
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
-  async getAssessment(id: string): Promise<Assessment | undefined> {
-    return this.assessments.get(id);
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async getAssessment(id: number): Promise<Assessment | undefined> {
+    const [assessment] = await db.select().from(assessments).where(eq(assessments.id, id));
+    return assessment || undefined;
   }
 
   async getAllAssessments(): Promise<Assessment[]> {
-    return Array.from(this.assessments.values()).sort((a, b) => {
-      const dateA = new Date(a.createdAt || 0).getTime();
-      const dateB = new Date(b.createdAt || 0).getTime();
-      return dateB - dateA;
-    });
+    return await db.select().from(assessments).orderBy(desc(assessments.createdAt));
   }
 
-  async createAssessment(insertAssessment: InsertAssessment): Promise<Assessment> {
-    const id = randomUUID();
-    const assessment: Assessment = { 
-      ...insertAssessment, 
-      id,
-      createdAt: new Date().toISOString()
-    };
-    this.assessments.set(id, assessment);
+  async getAssessmentsByUser(userId: number): Promise<Assessment[]> {
+    return await db
+      .select()
+      .from(assessments)
+      .where(eq(assessments.userId, userId))
+      .orderBy(desc(assessments.createdAt));
+  }
+
+  async createAssessment(insertAssessment: typeof assessments.$inferInsert): Promise<Assessment> {
+    const [assessment] = await db.insert(assessments).values(insertAssessment).returning();
     return assessment;
   }
 
-  async deleteAssessment(id: string): Promise<boolean> {
-    return this.assessments.delete(id);
+  async deleteAssessment(id: number): Promise<boolean> {
+    const result = await db.delete(assessments).where(eq(assessments.id, id)).returning();
+    return result.length > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

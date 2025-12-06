@@ -473,7 +473,7 @@ function createAnalysisSection(analysis: AnalysisResult): Content[] {
     { text: analysis.summary, style: 'value' }
   );
 
-  if (analysis.possibleConditions.length > 0) {
+  if (analysis.possibleConditions && analysis.possibleConditions.length > 0) {
     content.push({ text: 'Possible Conditions', style: 'sectionTitle' });
     
     analysis.possibleConditions.forEach(condition => {
@@ -504,14 +504,14 @@ function createAnalysisSection(analysis: AnalysisResult): Content[] {
     });
   }
 
-  if (analysis.avoid.length > 0) {
+  if (analysis.avoid && analysis.avoid.length > 0) {
     content.push(
       { text: 'Things to Avoid', style: 'sectionTitle' },
       { ul: analysis.avoid, style: 'listItem', margin: [0, 0, 0, 8] }
     );
   }
 
-  if (analysis.safeToTry.length > 0) {
+  if (analysis.safeToTry && analysis.safeToTry.length > 0) {
     content.push(
       { text: 'Safe to Try', style: 'sectionTitle' },
       { ul: analysis.safeToTry, style: 'listItem', margin: [0, 0, 0, 8] }
@@ -525,14 +525,14 @@ function createAnalysisSection(analysis: AnalysisResult): Content[] {
     );
   }
 
-  if (analysis.nextSteps.length > 0) {
+  if (analysis.nextSteps && analysis.nextSteps.length > 0) {
     content.push(
       { text: 'Recommended Next Steps', style: 'sectionTitle' },
       { ol: analysis.nextSteps, style: 'listItem', margin: [0, 0, 0, 8] }
     );
   }
 
-  if (analysis.experts.length > 0) {
+  if (analysis.experts && analysis.experts.length > 0) {
     content.push({ text: 'Recommended Specialists', style: 'sectionTitle' });
     
     analysis.experts.forEach(expert => {

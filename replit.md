@@ -26,14 +26,16 @@ MendMate is an interactive pain assessment tool that helps users track and docum
 - **Types**: TypeScript interfaces for FormData, PainPoint, Assessment
 
 ## Key Features
-1. **Interactive Body Diagrams** - SVG-based front and back anatomical views with clickable muscle groups (scaled 160-180px for easy interaction)
+1. **Interactive Body Diagrams** - SVG-based front and back anatomical views with clickable muscle groups (scaled 220px mobile, 280px sm, 320px md for easy interaction)
 2. **Paint Mode** - Draw pain points directly on body diagrams with adjustable brush sizes
 3. **Pain Assessment Form** - Comprehensive intake form with pain characteristics, history, triggers, and goals
 4. **AI Analysis** - Claude-powered analysis with detailed recommendations (uses Replit AI Integrations)
-5. **Export Options** - JSON export, PDF medical report generation via pdfmake
-6. **Auto-save** - Automatic localStorage persistence during assessment
-7. **Assessment History** - Timeline view with pain trends, statistics, and comparison
-8. **PDF Reports** - Professional medical reports with pain summaries and recommendations
+5. **Animated Analysis Loader** - Rotating health facts with progress indicators during AI analysis (framer-motion)
+6. **Enhanced Results UI** - Gradient hero sections, section dividers, expandable condition cards, icon-prefixed headers
+7. **Export Options** - JSON export, PDF medical report generation via pdfmake with sharing callout
+8. **Auto-save** - Automatic localStorage persistence during assessment
+9. **Assessment History** - Timeline view with pain trends, statistics, and comparison
+10. **PDF Reports** - Professional medical reports with pain summaries and recommendations
 
 ## Pages
 - `/` - Main assessment wizard (works immediately, no login required)
@@ -56,7 +58,7 @@ MendMate is an interactive pain assessment tool that helps users track and docum
 - Medical-grade color coding for pain intensity (green to red gradient)
 
 ## Design Decisions
-- Body diagrams scaled to max-w-[160px] on mobile, max-w-[180px] on desktop for comfortable interaction
+- Body diagrams scaled to max-w-[220px] on mobile, max-w-[280px] on sm, max-w-[320px] on md for comfortable interaction
 - Step-by-step wizard interface for guided assessment flow
 - Dark mode support through Tailwind CSS class strategy
 - Save button disabled until analysis completes (prevents incomplete data)

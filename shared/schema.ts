@@ -39,7 +39,7 @@ export const painPointSchema = z.object({
 });
 
 export const formDataSchema = z.object({
-  painLevel: z.number().min(1).max(10),
+  painLevel: z.number().min(1).max(10).nullable(),
   painTypes: z.array(z.string()),
   frequency: z.string(),
   duration: z.string(),
@@ -51,7 +51,7 @@ export const formDataSchema = z.object({
   activities: z.array(z.string()),
   intensity: z.string(),
   goals: z.string(),
-  concernLevel: z.number().min(1).max(10),
+  concernLevel: z.number().min(1).max(10).nullable(),
   concernReason: z.string(),
 });
 

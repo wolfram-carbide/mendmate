@@ -6,6 +6,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { z } from "zod";
 import { generatePdfBuffer } from "./pdfGenerator";
 import Anthropic from "@anthropic-ai/sdk";
+import { buildAnalysisPrompt } from "./promptTemplates";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -180,6 +181,10 @@ export async function registerRoutes(
       goals: z.string().optional(),
       concernLevel: z.number().min(1).max(10).optional().default(5),
       concernReason: z.string().optional(),
+      story: z.string().optional(),
+      triggersAndRelief: z.string().optional(),
+      progress: z.string().optional(),
+      triedSoFar: z.string().optional(),
     }),
     muscleLabels: z.array(z.string()).optional().default([]),
   });
@@ -230,84 +235,15 @@ export async function registerRoutes(
         baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
       });
 
-      const urgencyHint = formData.painLevel >= 7 ? "high" : formData.painLevel >= 4 ? "moderate" : "low";
-      
-      const prompt = `You are a compassionate, knowledgeable pain assessment assistant. Your role is to help people understand their pain, feel reassured, and know what steps to take. 
-
-CORE PRINCIPLES:
-1. EDUCATE - Help users understand the "why" behind their pain, connecting it to body mechanics
-2. REASSURE - Any injury is normal. Anxiety makes pain worse. Be calming and supportive.
-3. EMPOWER - Give meta-level guidance (principles, not just exercises) so they understand the approach
-4. ACCURATE - Be clinically grounded while remaining accessible
-
-PATIENT ASSESSMENT DATA:
-- Affected Areas: ${muscleLabels?.join(', ') || 'Not specified'}
-- Pain Level: ${formData.painLevel}/10
-- Pain Types: ${formData.painTypes?.join(', ') || 'Not specified'}
-- Frequency: ${formData.frequency || 'Not specified'}
-- Duration: ${formData.duration || 'Not specified'}
-- Pain Timing: ${formData.timing || 'Not specified'}
-- Pain worsens with: ${formData.worsenFactors?.join(', ') || 'Not specified'}
-- Pain improves with: ${formData.improveFactors?.join(', ') || 'Not specified'}
-- Injury History: ${formData.injuryHistory || 'None reported'}
-- Medical History: ${formData.medicalHistory || 'None reported'}
-- Current Medications: ${formData.medications || 'None reported'}
-- Activities Affected: ${formData.activitiesAffected?.join(', ') || 'Not specified'}
-- Patient Goals: ${formData.goals || 'Not specified'}
-- Concern Level: ${formData.concernLevel}/10
-- Concern Reason: ${formData.concernReason || 'Not specified'}
-- Number of pain points marked: ${painPoints?.length || 0}
-
-Generate a comprehensive, empathetic analysis in the following JSON format:
-
-{
-  "summary": "A warm, personalized 2-3 sentence overview of their situation. Acknowledge their specific pain and validate their experience.",
-  
-  "urgency": "${urgencyHint}",
-  
-  "understandingWhatsHappening": "A detailed educational paragraph explaining the anatomy and mechanics involved. Help them understand WHY this is happening - how the affected area connects to the kinetic chain, what structures are involved, and why their specific symptoms make sense. Use accessible language but be thorough. This builds understanding that makes recommendations intuitive.",
-  
-  "reassurance": {
-    "title": "${urgencyHint === 'high' ? 'A Silver Lining' : 'The Good News'}",
-    "message": "A genuinely encouraging paragraph. For low/moderate urgency: emphasize how common and treatable this is, praise their proactive approach. For high urgency: acknowledge the seriousness but find the positive angle - early intervention, treatability, their body awareness. Always reduce anxiety."
-  },
-  
-  "possibleConditions": [
-    {
-      "name": "Condition name",
-      "likelihood": "Likely" | "Possible" | "Less Likely",
-      "description": "Clear explanation of this condition, why it matches their symptoms, and what distinguishes it"
-    }
-  ],
-  
-  "watchFor": ["Red flag symptom that would require immediate attention", "..."],
-  
-  "recoveryPrinciples": ["Meta-level principle for recovery (e.g., 'Load management - gradually increase demands as symptoms allow')", "Focus on sustainable habits over quick fixes", "..."],
-  
-  "avoid": ["Specific activity or behavior to temporarily avoid or modify", "..."],
-  
-  "safeToTry": ["Activity that is generally safe and may help (with brief context)", "..."],
-  
-  "timeline": "A realistic, hopeful paragraph about expected recovery. Include milestones and emphasize that consistent daily attention matters more than dramatic interventions.",
-  
-  "resources": [
-    {
-      "name": "Type of professional or resource",
-      "type": "Specialist" | "Therapist" | "Self-help" | "Educational",
-      "why": "When and why to seek this resource"
-    }
-  ]
-}
-
-GUIDELINES:
-- Provide 3-4 possible conditions ranked by likelihood
-- Include 4-5 red flag symptoms to watch for
-- Provide 4-6 recovery principles (meta-level, not just "do stretches")
-- Include 4-5 things to avoid/modify
-- Include 5-6 safe activities with brief context
-- Resources should include 2-3 options appropriate for their situation
-
-Respond ONLY with the JSON object, no additional text or markdown.`;
+      // Build the analysis prompt using the modular template system
+      // Prompts and expert knowledge are documented in:
+      // - server/promptTemplates.ts (prompt structure, empathy guidelines)
+      // - server/expertKnowledge.ts (experts by body region, recovery principles)
+      const prompt = buildAnalysisPrompt(
+        muscleLabels || [],
+        painPoints?.length || 0,
+        formData
+      );
 
       const message = await anthropic.messages.create({
         model: "claude-sonnet-4-5",

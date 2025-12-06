@@ -921,20 +921,36 @@ function generateMockAnalysis(selectedMuscles: string[], formData: FormData) {
       ? 'Most acute issues show meaningful improvement within 2-4 weeks with proper care. You should notice gradual progress, with good and less-good days being normal. Full return to activity typically takes 4-8 weeks.'
       : 'Sub-acute conditions often respond well within 4-8 weeks of consistent management. The key is daily attention rather than expecting dramatic overnight changes.';
 
-  const understandingWhatsHappening = `The ${muscleLabels.join(' and ')} ${muscleLabels.length > 1 ? 'areas are' : 'area is'} part of a connected system of muscles, tendons, and joints that work together. When one area experiences stress or strain, it can affect the entire kinetic chain. Your ${formData.painTypes?.includes('Tight/Stiff') ? 'stiffness' : 'discomfort'} likely reflects your body's protective response to perceived threat or overload. This is actually your body doing its job - signaling that something needs attention.`;
+  const hasStory = formData.story && formData.story.trim().length > 0;
+  const hasGoals = formData.goals && formData.goals.trim().length > 0;
+  const hasTriggers = formData.triggersAndRelief && formData.triggersAndRelief.trim().length > 0;
+  const hasProgress = formData.progress && formData.progress.trim().length > 0;
+  
+  const storyContext = hasStory 
+    ? ` What you described - "${formData.story.slice(0, 80)}${formData.story.length > 80 ? '...' : ''}" - helps me understand the context.`
+    : '';
+  const goalsContext = hasGoals ? ` I hear that your goal is ${formData.goals.toLowerCase()}.` : '';
+  const triggersContext = hasTriggers ? ` It is helpful to know that ${formData.triggersAndRelief.toLowerCase()}.` : '';
+  const progressContext = hasProgress ? ` And I can see that ${formData.progress.toLowerCase()}.` : '';
+  
+  const understandingWhatsHappening = `The ${muscleLabels.join(' and ')} ${muscleLabels.length > 1 ? 'areas are' : 'area is'} part of a connected system of muscles, tendons, and joints that work together. When one area experiences stress or strain, it can affect the entire kinetic chain. Your ${formData.painTypes?.includes('Tight/Stiff') ? 'stiffness' : 'discomfort'} likely reflects your body's protective response to perceived threat or overload. This is actually your body doing its job - signaling that something needs attention.${hasTriggers ? ` The fact that certain things help or worsen your symptoms is actually useful information - it tells us about the mechanical nature of what is happening.` : ''}`;
 
   const reassurance = urgency === 'high' 
     ? { 
         title: 'A Silver Lining', 
-        message: `While your symptoms warrant attention, the fact that you're being proactive about addressing this is excellent. Early intervention typically leads to better outcomes. Your body has remarkable healing capacity, and with the right support, most musculoskeletal conditions improve significantly.`
+        message: `While your symptoms warrant attention, the fact that you're being proactive about addressing this is excellent. Early intervention typically leads to better outcomes. Your body has remarkable healing capacity, and with the right support, most musculoskeletal conditions improve significantly. The very act of taking time to understand your pain puts you ahead of most people.`
       }
     : { 
         title: 'The Good News', 
-        message: `A ${painLevel}/10 pain level with ${isAcute ? 'recent onset' : 'your current pattern'} is very common and typically highly treatable. Your proactive approach to understanding this shows excellent body awareness. Most people with similar presentations respond well to appropriate self-management and targeted interventions.`
+        message: `A ${painLevel}/10 pain level with ${isAcute ? 'recent onset' : 'your current pattern'} is very common and typically highly treatable. Your proactive approach to understanding this shows excellent body awareness. Most people with similar presentations respond well to appropriate self-management and targeted interventions. You're not alone in this - these kinds of issues are something we see all the time, and they generally get better.`
       };
 
+  const empatheticSummary = hasStory
+    ? `I can see you have been dealing with this ${muscleLabels.join(' and ')} discomfort for a while now.${storyContext}${goalsContext} A ${painLevel}/10 pain level is ${painLevel >= 7 ? 'significant and I understand how frustrating that must be' : painLevel >= 4 ? 'definitely enough to affect your daily life' : 'manageable but still worth addressing'}. ${formData.frequency === 'Constant' ? 'The fact that this is constant tells me your body is really trying to get your attention here' : 'Your symptom pattern gives us useful clues about what might be going on'}.${progressContext}`
+    : `I can see you are dealing with ${painLevel >= 7 ? 'significant' : painLevel >= 4 ? 'moderate' : 'mild'} discomfort in your ${muscleLabels.join(' and ')}.${goalsContext} ${formData.frequency === 'Constant' ? 'The constant nature of your symptoms' : 'Your symptom pattern'} tells us something important about ${isChronic ? 'how your body has been adapting over time' : 'what your body needs right now'}. ${isChronic ? 'While chronic issues take patience, they absolutely can improve with the right approach.' : 'The good news is that most issues like this respond well to targeted self-care.'}${progressContext}`;
+
   return {
-    summary: `Based on your assessment, you're experiencing ${painLevel >= 7 ? 'significant' : painLevel >= 4 ? 'moderate' : 'mild'} discomfort in ${muscleLabels.length} area${muscleLabels.length > 1 ? 's' : ''}: ${muscleLabels.join(', ')}. ${formData.frequency === 'Constant' ? 'The constant nature of your symptoms' : 'Your symptom pattern'} suggests ${isChronic ? 'a condition that would benefit from consistent, patient management' : 'an issue that may respond well to targeted self-care'}.`,
+    summary: empatheticSummary,
     urgency,
     understandingWhatsHappening,
     reassurance,

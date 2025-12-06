@@ -1,7 +1,7 @@
-# Body Pain Assessment Application
+# MendMate - Your Recovery Companion
 
 ## Overview
-An interactive body pain assessment tool that helps users track and document their pain locations, intensity, and related symptoms. The application provides AI-powered analysis and personalized recommendations using Claude.
+MendMate is an interactive pain assessment tool that helps users track and document their pain locations, intensity, and related symptoms. The application provides AI-powered analysis and personalized recommendations using Claude.
 
 ## Current State
 - **Status**: Full-Featured MVP (No Authentication Required)

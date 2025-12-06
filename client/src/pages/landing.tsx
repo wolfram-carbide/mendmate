@@ -9,7 +9,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg" data-testid="text-app-title">Body Pain Assessment</span>
+            <span className="font-semibold text-lg" data-testid="text-app-title">MendMate</span>
           </div>
           <a href="/api/login">
             <Button data-testid="button-login">
@@ -42,7 +42,7 @@ export default function Landing() {
         <section className="py-16 px-4 bg-muted/50">
           <div className="container mx-auto">
             <h2 className="text-2xl font-semibold text-center mb-12" data-testid="text-features-title">
-              Why Use Body Pain Assessment?
+              Why Use MendMate?
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="p-6" data-testid="card-feature-diagrams">

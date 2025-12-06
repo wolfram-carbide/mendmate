@@ -1432,8 +1432,8 @@ export default function BodyPainAssessment() {
               <Activity className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-foreground" data-testid="app-title">Body Pain Assessment</h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">Understand your injury</p>
+              <h1 className="text-base font-bold text-foreground" data-testid="app-title">MendMate</h1>
+              <p className="text-xs text-muted-foreground hidden sm:block">Your recovery companion</p>
             </div>
           </div>
           <div className="flex items-center gap-1">

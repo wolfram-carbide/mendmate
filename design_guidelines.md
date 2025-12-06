@@ -1,4 +1,4 @@
-# Body Pain Assessment Application - Design Guidelines
+# MendMate - Design Guidelines
 
 ## Design Approach
 **System Selected**: Warm Professional Medical Design - A sophisticated, calming healthcare aesthetic with cream/warm gray palette, muted earth tones, and refined typography that conveys trust and professionalism.

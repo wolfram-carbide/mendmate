@@ -162,7 +162,7 @@ export async function registerRoutes(
     painPoints: z.array(z.object({
       x: z.number(),
       y: z.number(),
-      intensity: z.number(),
+      size: z.number().optional(),
       view: z.string(),
     })).optional().default([]),
     formData: z.object({

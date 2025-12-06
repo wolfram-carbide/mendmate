@@ -3,6 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   ChevronRight, 
   ChevronLeft, 
+  ChevronDown,
   X, 
   Check, 
   AlertCircle, 
@@ -19,7 +20,9 @@ import {
   Loader2,
   FileText,
   History,
-  Save
+  Save,
+  BookOpen,
+  Shield
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -881,58 +884,87 @@ function generateMockAnalysis(selectedMuscles: string[], formData: FormData) {
     }
   ];
 
+  const watchFor = [
+    'Sharp, severe pain that stops you mid-movement',
+    'Significant swelling or warmth in the area',
+    'Numbness or tingling spreading to other areas',
+    'Inability to bear weight or use the affected area',
+    'Symptoms worsening despite rest'
+  ];
+
+  const recoveryPrinciples = [
+    'Load management - gradually adjust activity levels as symptoms allow',
+    'Progressive tissue adaptation - slowly increase demands over time',
+    'Active recovery - gentle movement often helps more than complete rest',
+    'Consistency over intensity - daily gentle care beats sporadic aggressive treatment',
+    'Listen to your body - pain is information, not just something to push through'
+  ];
+
   const avoid = [
-    'Heavy lifting or high-impact activities',
+    'Heavy lifting or high-impact activities until symptoms improve',
     'Prolonged static positions that aggravate the area',
-    'Ignoring pain signals during activity'
+    'Training through sharp or increasing pain',
+    'Complete immobilization (some movement is usually beneficial)'
   ];
 
   const safeToTry = [
-    'Gentle range of motion exercises',
-    'Light stretching within pain-free range',
-    'Heat or ice application as tolerable',
-    'Over-the-counter pain relief if appropriate'
-  ];
-
-  const nextSteps = [
-    'Track your symptoms daily for patterns',
-    isAcute ? 'Allow adequate rest for initial healing' : 'Consider structured rehabilitation',
-    painLevel >= 6 ? 'Schedule an appointment with a healthcare provider' : 'Continue monitoring symptoms',
-    'Gradually return to activity as symptoms allow'
+    'Gentle range of motion exercises within pain-free range',
+    'Light walking to maintain blood flow',
+    'Heat or ice application as feels comfortable',
+    'Gentle stretching without forcing',
+    'Low-impact activities like swimming if tolerable'
   ];
 
   const timeline = isChronic 
-    ? 'Chronic conditions may require 3-6 months of consistent management. Progress is often gradual but achievable with proper care.'
+    ? 'With consistent daily attention, you should notice gradual improvement over 2-3 months. Chronic conditions respond best to steady, patient care rather than quick fixes. Small improvements compound over time.'
     : isAcute 
-      ? 'Acute injuries typically show improvement within 2-6 weeks with appropriate care. Full recovery depends on severity.'
-      : 'Sub-acute conditions often respond well to targeted treatment within 4-12 weeks.';
+      ? 'Most acute issues show meaningful improvement within 2-4 weeks with proper care. You should notice gradual progress, with good and less-good days being normal. Full return to activity typically takes 4-8 weeks.'
+      : 'Sub-acute conditions often respond well within 4-8 weeks of consistent management. The key is daily attention rather than expecting dramatic overnight changes.';
+
+  const understandingWhatsHappening = `The ${muscleLabels.join(' and ')} ${muscleLabels.length > 1 ? 'areas are' : 'area is'} part of a connected system of muscles, tendons, and joints that work together. When one area experiences stress or strain, it can affect the entire kinetic chain. Your ${formData.painTypes?.includes('Tight/Stiff') ? 'stiffness' : 'discomfort'} likely reflects your body's protective response to perceived threat or overload. This is actually your body doing its job - signaling that something needs attention.`;
+
+  const reassurance = urgency === 'high' 
+    ? { 
+        title: 'A Silver Lining', 
+        message: `While your symptoms warrant attention, the fact that you're being proactive about addressing this is excellent. Early intervention typically leads to better outcomes. Your body has remarkable healing capacity, and with the right support, most musculoskeletal conditions improve significantly.`
+      }
+    : { 
+        title: 'The Good News', 
+        message: `A ${painLevel}/10 pain level with ${isAcute ? 'recent onset' : 'your current pattern'} is very common and typically highly treatable. Your proactive approach to understanding this shows excellent body awareness. Most people with similar presentations respond well to appropriate self-management and targeted interventions.`
+      };
 
   return {
-    summary: `Based on your assessment, you're experiencing ${painLevel >= 7 ? 'significant' : painLevel >= 4 ? 'moderate' : 'mild'} discomfort in ${muscleLabels.length} area${muscleLabels.length > 1 ? 's' : ''}: ${muscleLabels.join(', ')}. ${formData.frequency === 'Constant' ? 'The constant nature of your symptoms' : 'Your symptom pattern'} suggests ${isChronic ? 'a chronic condition that may benefit from professional evaluation' : 'an issue that may respond well to self-management'}.`,
+    summary: `Based on your assessment, you're experiencing ${painLevel >= 7 ? 'significant' : painLevel >= 4 ? 'moderate' : 'mild'} discomfort in ${muscleLabels.length} area${muscleLabels.length > 1 ? 's' : ''}: ${muscleLabels.join(', ')}. ${formData.frequency === 'Constant' ? 'The constant nature of your symptoms' : 'Your symptom pattern'} suggests ${isChronic ? 'a condition that would benefit from consistent, patient management' : 'an issue that may respond well to targeted self-care'}.`,
     urgency,
-    urgencyMessage,
+    understandingWhatsHappening,
+    reassurance,
     possibleConditions,
+    watchFor,
+    recoveryPrinciples,
     avoid,
     safeToTry,
     timeline,
-    nextSteps,
-    experts: painLevel >= 7 ? [
-      { name: 'Physical Therapist', focus: 'Movement assessment and rehabilitation', why: 'Can provide targeted exercises and manual therapy' },
-      { name: 'Sports Medicine Doctor', focus: 'Athletic injuries and recovery', why: 'Specialized in musculoskeletal conditions' }
-    ] : []
+    resources: painLevel >= 5 ? [
+      { name: 'Physical Therapist', type: 'Specialist', why: 'Can provide movement assessment and targeted exercises for your specific situation' },
+      { name: 'Sports Medicine Doctor', type: 'Specialist', why: 'Helpful if symptoms persist beyond 4-6 weeks or interfere significantly with activities' }
+    ] : [
+      { name: 'Self-guided stretching resources', type: 'Educational', why: 'Gentle mobility work can often help with mild discomfort' }
+    ]
   };
 }
 
 interface AnalysisResult {
   summary: string;
   urgency: string;
-  urgencyMessage: string;
+  understandingWhatsHappening: string;
+  reassurance: { title: string; message: string };
   possibleConditions: Array<{ name: string; likelihood: string; description: string }>;
+  watchFor: string[];
+  recoveryPrinciples: string[];
   avoid: string[];
   safeToTry: string[];
   timeline: string;
-  nextSteps: string[];
-  experts: Array<{ name: string; focus: string; why: string }>;
+  resources: Array<{ name: string; type: string; why: string }>;
 }
 
 interface AIAnalysisProps {
@@ -947,6 +979,7 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
   const [isLoading, setIsLoading] = useState(!cachedAnalysis);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(cachedAnalysis);
   const [error, setError] = useState<string | null>(null);
+  const [expandedConditions, setExpandedConditions] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (cachedAnalysis) {
@@ -984,13 +1017,15 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
         const analysisResult: AnalysisResult = {
           summary: result.summary || '',
           urgency: result.urgency || 'moderate',
-          urgencyMessage: result.urgencyMessage || '',
+          understandingWhatsHappening: result.understandingWhatsHappening || '',
+          reassurance: result.reassurance || { title: 'The Good News', message: '' },
           possibleConditions: result.possibleConditions || [],
+          watchFor: result.watchFor || [],
+          recoveryPrinciples: result.recoveryPrinciples || [],
           avoid: result.avoid || [],
           safeToTry: result.safeToTry || [],
           timeline: result.timeline || '',
-          nextSteps: result.nextSteps || [],
-          experts: result.experts || [],
+          resources: result.resources || [],
         };
         
         setAnalysis(analysisResult);
@@ -1022,10 +1057,16 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
 
   if (!analysis) return null;
 
-  const urgencyColors: Record<string, string> = {
-    low: 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200',
-    moderate: 'bg-amber-100 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200',
-    high: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+  const toggleCondition = (index: number) => {
+    setExpandedConditions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -1035,80 +1076,147 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
           {error}
         </div>
       )}
-      <div className={`rounded-lg p-4 border ${urgencyColors[analysis.urgency]}`}>
-        <div className="flex items-center gap-2 font-semibold mb-1">
-          <AlertCircle className="w-4 h-4" />
-          {analysis.urgency === 'high' ? 'Priority Attention' : analysis.urgency === 'moderate' ? 'Moderate Attention' : 'Low Concern'}
-        </div>
-        <p className="text-sm">{analysis.urgencyMessage}</p>
-      </div>
 
-      <div className="bg-muted/50 rounded-lg p-4">
+      {/* 1. Summary */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800/30">
         <h4 className="font-semibold text-foreground mb-2">Summary</h4>
         <p className="text-muted-foreground text-sm leading-relaxed">{analysis.summary}</p>
       </div>
 
+      {/* 2. Understanding What's Happening */}
+      {analysis.understandingWhatsHappening && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-100 dark:border-amber-800/30">
+          <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+            <BookOpen className="w-4 h-4" />
+            Understanding What's Happening
+          </h4>
+          <p className="text-muted-foreground text-sm leading-relaxed">{analysis.understandingWhatsHappening}</p>
+        </div>
+      )}
+
+      {/* 3. The Good News / A Silver Lining */}
+      {analysis.reassurance?.message && (
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-100 dark:border-green-800/30">
+          <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2 flex items-center gap-2">
+            <Heart className="w-4 h-4" />
+            {analysis.reassurance.title}
+          </h4>
+          <p className="text-green-700 dark:text-green-300 text-sm leading-relaxed">{analysis.reassurance.message}</p>
+        </div>
+      )}
+
+      {/* 4. Possible Conditions - Expandable */}
       <div>
         <h4 className="font-semibold text-foreground mb-3">Possible Conditions</h4>
         <div className="space-y-2">
           {analysis.possibleConditions.map((c, i) => (
-            <div key={i} className="p-3 bg-card rounded-lg border">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="font-medium text-foreground text-sm">{c.name}</span>
-                <Badge variant="secondary" className="text-xs">{c.likelihood}</Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">{c.description}</p>
+            <div key={i} className="bg-card rounded-lg border overflow-hidden">
+              <button
+                onClick={() => toggleCondition(i)}
+                className="w-full p-3 flex items-center justify-between text-left hover-elevate"
+                data-testid={`condition-toggle-${i}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center text-sm font-medium text-muted-foreground">
+                    {i + 1}
+                  </div>
+                  <span className="font-medium text-foreground text-sm">{c.name}</span>
+                  <Badge variant="secondary" className="text-xs">{c.likelihood}</Badge>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedConditions.has(i) ? 'rotate-180' : ''}`} />
+              </button>
+              {expandedConditions.has(i) && (
+                <div className="px-3 pb-3 pt-0 ml-9">
+                  <p className="text-sm text-muted-foreground leading-relaxed">{c.description}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* 5. Watch For */}
+      {analysis.watchFor?.length > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-100 dark:border-red-800/30">
-          <h4 className="font-semibold text-red-800 dark:text-red-200 mb-2 text-sm">Avoid</h4>
-          <ul className="space-y-1 text-sm text-red-700 dark:text-red-300">
-            {analysis.avoid?.map((a, i) => <li key={i} className="flex items-start gap-2"><X className="w-3 h-3 mt-1 flex-shrink-0" />{a}</li>)}
+          <h4 className="font-semibold text-red-800 dark:text-red-200 mb-3 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            Watch For
+          </h4>
+          <ul className="space-y-2">
+            {analysis.watchFor.map((item, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
+                <span className="text-red-500 mt-0.5">•</span>
+                {item}
+              </li>
+            ))}
           </ul>
         </div>
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-100 dark:border-green-800/30">
-          <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2 text-sm">Generally Safe</h4>
-          <ul className="space-y-1 text-sm text-green-700 dark:text-green-300">
-            {analysis.safeToTry?.map((s, i) => <li key={i} className="flex items-start gap-2"><Check className="w-3 h-3 mt-1 flex-shrink-0" />{s}</li>)}
-          </ul>
-        </div>
-      </div>
+      )}
 
-      <div className="bg-muted/50 rounded-lg p-4">
-        <h4 className="font-semibold text-foreground mb-2">Expected Timeline</h4>
-        <p className="text-muted-foreground text-sm">{analysis.timeline}</p>
-      </div>
-
-      {analysis.experts?.length > 0 && (
+      {/* 6. Recovery Principles */}
+      {analysis.recoveryPrinciples?.length > 0 && (
         <div>
-          <h4 className="font-semibold text-foreground mb-2">Consider Consulting</h4>
+          <h4 className="font-semibold text-foreground mb-3">Recovery Principles</h4>
           <div className="space-y-2">
-            {analysis.experts.map((e, i) => (
-              <div key={i} className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800/30">
-                <div className="font-medium text-purple-900 dark:text-purple-200 text-sm">{e.name}</div>
-                <div className="text-xs text-purple-700 dark:text-purple-300">{e.focus}</div>
-                <div className="text-xs text-purple-600 dark:text-purple-400 mt-1">{e.why}</div>
+            {analysis.recoveryPrinciples.map((principle, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 bg-card rounded-lg border">
+                <Check className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                <span className="text-foreground text-sm">{principle}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div>
-        <h4 className="font-semibold text-foreground mb-2">Next Steps</h4>
-        <div className="space-y-2">
-          {analysis.nextSteps?.map((s, i) => (
-            <div key={i} className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/30">
-              <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">{i + 1}</div>
-              <span className="text-foreground text-sm pt-0.5">{s}</span>
-            </div>
-          ))}
+      {/* 7. Avoid/Modify & 8. Generally Safe - Side by side */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-100 dark:border-red-800/30">
+          <h4 className="font-semibold text-red-800 dark:text-red-200 mb-3 text-sm">Avoid/Modify</h4>
+          <ul className="space-y-2">
+            {analysis.avoid?.map((a, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
+                <X className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                {a}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-100 dark:border-green-800/30">
+          <h4 className="font-semibold text-green-800 dark:text-green-200 mb-3 text-sm">Generally Safe</h4>
+          <ul className="space-y-2">
+            {analysis.safeToTry?.map((s, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-green-700 dark:text-green-300">
+                <Check className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                {s}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
+
+      {/* 9. Expected Timeline */}
+      <div className="bg-muted/50 rounded-lg p-4">
+        <h4 className="font-semibold text-foreground mb-2">Expected Timeline</h4>
+        <p className="text-muted-foreground text-sm leading-relaxed">{analysis.timeline}</p>
+      </div>
+
+      {/* 10. Resources */}
+      {analysis.resources?.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-foreground mb-3">Expert Resources</h4>
+          <div className="space-y-2">
+            {analysis.resources.map((r, i) => (
+              <div key={i} className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800/30">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-purple-900 dark:text-purple-200 text-sm">{r.name}</span>
+                  <Badge variant="outline" className="text-xs">{r.type}</Badge>
+                </div>
+                <p className="text-xs text-purple-700 dark:text-purple-300">{r.why}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

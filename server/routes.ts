@@ -184,23 +184,28 @@ export async function registerRoutes(
     muscleLabels: z.array(z.string()).optional().default([]),
   });
 
-  // Validation schema for AI analysis response
+  // Validation schema for AI analysis response - New 10-section structure
   const analysisResultSchema = z.object({
     summary: z.string(),
     urgency: z.enum(["low", "moderate", "high"]),
-    urgencyMessage: z.string(),
+    understandingWhatsHappening: z.string(),
+    reassurance: z.object({
+      title: z.string(),
+      message: z.string(),
+    }),
     possibleConditions: z.array(z.object({
       name: z.string(),
       likelihood: z.string(),
       description: z.string(),
     })),
+    watchFor: z.array(z.string()),
+    recoveryPrinciples: z.array(z.string()),
     avoid: z.array(z.string()),
     safeToTry: z.array(z.string()),
     timeline: z.string(),
-    nextSteps: z.array(z.string()),
-    experts: z.array(z.object({
+    resources: z.array(z.object({
       name: z.string(),
-      focus: z.string(),
+      type: z.string(),
       why: z.string(),
     })).optional().default([]),
   });
@@ -225,7 +230,15 @@ export async function registerRoutes(
         baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
       });
 
-      const prompt = `You are a medical assessment AI assistant. Analyze this body pain assessment and provide structured recommendations.
+      const urgencyHint = formData.painLevel >= 7 ? "high" : formData.painLevel >= 4 ? "moderate" : "low";
+      
+      const prompt = `You are a compassionate, knowledgeable pain assessment assistant. Your role is to help people understand their pain, feel reassured, and know what steps to take. 
+
+CORE PRINCIPLES:
+1. EDUCATE - Help users understand the "why" behind their pain, connecting it to body mechanics
+2. REASSURE - Any injury is normal. Anxiety makes pain worse. Be calming and supportive.
+3. EMPOWER - Give meta-level guidance (principles, not just exercises) so they understand the approach
+4. ACCURATE - Be clinically grounded while remaining accessible
 
 PATIENT ASSESSMENT DATA:
 - Affected Areas: ${muscleLabels?.join(', ') || 'Not specified'}
@@ -245,33 +258,56 @@ PATIENT ASSESSMENT DATA:
 - Concern Reason: ${formData.concernReason || 'Not specified'}
 - Number of pain points marked: ${painPoints?.length || 0}
 
-Based on this assessment, provide a comprehensive analysis in the following JSON format. Be thorough, empathetic, and clinically accurate:
+Generate a comprehensive, empathetic analysis in the following JSON format:
 
 {
-  "summary": "A 2-3 sentence personalized summary of the patient's condition, acknowledging their specific pain areas and patterns",
-  "urgency": "low" | "moderate" | "high",
-  "urgencyMessage": "A clear, reassuring message about the urgency level and recommended action",
+  "summary": "A warm, personalized 2-3 sentence overview of their situation. Acknowledge their specific pain and validate their experience.",
+  
+  "urgency": "${urgencyHint}",
+  
+  "understandingWhatsHappening": "A detailed educational paragraph explaining the anatomy and mechanics involved. Help them understand WHY this is happening - how the affected area connects to the kinetic chain, what structures are involved, and why their specific symptoms make sense. Use accessible language but be thorough. This builds understanding that makes recommendations intuitive.",
+  
+  "reassurance": {
+    "title": "${urgencyHint === 'high' ? 'A Silver Lining' : 'The Good News'}",
+    "message": "A genuinely encouraging paragraph. For low/moderate urgency: emphasize how common and treatable this is, praise their proactive approach. For high urgency: acknowledge the seriousness but find the positive angle - early intervention, treatability, their body awareness. Always reduce anxiety."
+  },
+  
   "possibleConditions": [
     {
       "name": "Condition name",
-      "likelihood": "Likely" | "Possible" | "Consider",
-      "description": "Brief clinical description of this condition and why it matches the symptoms"
+      "likelihood": "Likely" | "Possible" | "Less Likely",
+      "description": "Clear explanation of this condition, why it matches their symptoms, and what distinguishes it"
     }
   ],
-  "avoid": ["Activity or behavior to avoid", "..."],
-  "safeToTry": ["Safe self-care activity", "..."],
-  "timeline": "Expected recovery timeline based on the condition duration and severity",
-  "nextSteps": ["Specific actionable step 1", "Step 2", "..."],
-  "experts": [
+  
+  "watchFor": ["Red flag symptom that would require immediate attention", "..."],
+  
+  "recoveryPrinciples": ["Meta-level principle for recovery (e.g., 'Load management - gradually increase demands as symptoms allow')", "Focus on sustainable habits over quick fixes", "..."],
+  
+  "avoid": ["Specific activity or behavior to temporarily avoid or modify", "..."],
+  
+  "safeToTry": ["Activity that is generally safe and may help (with brief context)", "..."],
+  
+  "timeline": "A realistic, hopeful paragraph about expected recovery. Include milestones and emphasize that consistent daily attention matters more than dramatic interventions.",
+  
+  "resources": [
     {
-      "name": "Type of specialist",
-      "focus": "What they specialize in",
-      "why": "Why this specialist would help"
+      "name": "Type of professional or resource",
+      "type": "Specialist" | "Therapist" | "Self-help" | "Educational",
+      "why": "When and why to seek this resource"
     }
   ]
 }
 
-Provide 2-4 possible conditions, 3-4 things to avoid, 4-5 safe activities, and 3-5 next steps. Only include experts array if pain level is 6 or higher. Respond ONLY with the JSON object, no additional text.`;
+GUIDELINES:
+- Provide 3-4 possible conditions ranked by likelihood
+- Include 4-5 red flag symptoms to watch for
+- Provide 4-6 recovery principles (meta-level, not just "do stretches")
+- Include 4-5 things to avoid/modify
+- Include 5-6 safe activities with brief context
+- Resources should include 2-3 options appropriate for their situation
+
+Respond ONLY with the JSON object, no additional text or markdown.`;
 
       const message = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
@@ -310,13 +346,18 @@ Provide 2-4 possible conditions, 3-4 things to avoid, 4-5 safe activities, and 3
           analysis = {
             summary: rawAnalysis.summary || "Unable to generate complete analysis",
             urgency: ["low", "moderate", "high"].includes(rawAnalysis.urgency) ? rawAnalysis.urgency : "moderate",
-            urgencyMessage: rawAnalysis.urgencyMessage || "Please consult with a healthcare professional for guidance",
+            understandingWhatsHappening: rawAnalysis.understandingWhatsHappening || "Your body is responding to stress or strain in the affected area.",
+            reassurance: rawAnalysis.reassurance || {
+              title: "The Good News",
+              message: "Most pain conditions respond well to proper care and attention."
+            },
             possibleConditions: Array.isArray(rawAnalysis.possibleConditions) ? rawAnalysis.possibleConditions : [],
+            watchFor: Array.isArray(rawAnalysis.watchFor) ? rawAnalysis.watchFor : [],
+            recoveryPrinciples: Array.isArray(rawAnalysis.recoveryPrinciples) ? rawAnalysis.recoveryPrinciples : [],
             avoid: Array.isArray(rawAnalysis.avoid) ? rawAnalysis.avoid : [],
             safeToTry: Array.isArray(rawAnalysis.safeToTry) ? rawAnalysis.safeToTry : [],
-            timeline: rawAnalysis.timeline || "Consult a healthcare professional for timeline guidance",
-            nextSteps: Array.isArray(rawAnalysis.nextSteps) ? rawAnalysis.nextSteps : [],
-            experts: Array.isArray(rawAnalysis.experts) ? rawAnalysis.experts : [],
+            timeline: rawAnalysis.timeline || "Recovery timelines vary. Consult a healthcare professional for guidance.",
+            resources: Array.isArray(rawAnalysis.resources) ? rawAnalysis.resources : [],
           };
         } else {
           analysis = validatedAnalysis.data;

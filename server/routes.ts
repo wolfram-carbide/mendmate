@@ -7,6 +7,7 @@ import { z } from "zod";
 import { generatePdfBuffer } from "./pdfGenerator";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildAnalysisPrompt } from "./promptTemplates";
+import { checkRateLimit } from "./rateLimiter";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -218,6 +219,18 @@ export async function registerRoutes(
   // AI Analysis endpoint using Anthropic Claude
   app.post("/api/analyze", async (req, res) => {
     try {
+      // Rate limiting: 2 requests/minute, 30 requests/day per IP
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+      const rateCheck = checkRateLimit(clientIp);
+      
+      if (!rateCheck.allowed) {
+        return res.status(429).json({
+          error: "Rate limit exceeded",
+          message: rateCheck.message,
+          retryAfter: rateCheck.retryAfter,
+        });
+      }
+
       // Validate request body
       const validationResult = analyzeRequestSchema.safeParse(req.body);
       if (!validationResult.success) {

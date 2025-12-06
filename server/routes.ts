@@ -247,7 +247,7 @@ export async function registerRoutes(
 
       const message = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
-        max_tokens: 2048,
+        max_tokens: 4096,
         messages: [
           {
             role: "user",
@@ -264,7 +264,10 @@ export async function registerRoutes(
       // Parse the JSON response with robust extraction
       let analysis;
       try {
-        const responseText = content.text.trim();
+        let responseText = content.text.trim();
+        
+        // Strip markdown code block delimiters if present
+        responseText = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
         
         // Try to extract JSON using regex to find the first complete JSON object
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);

@@ -488,33 +488,40 @@ function AnatomicalBody({
 }
 
 interface PainSliderProps {
-  value: number;
+  value: number | null;
   onChange: (value: number) => void;
+  required?: boolean;
 }
 
-function PainSlider({ value, onChange }: PainSliderProps) {
+function PainSlider({ value, onChange, required }: PainSliderProps) {
   const colors = ['#22c55e', '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444', '#ef4444', '#dc2626', '#dc2626', '#991b1b'];
   const labels = ['Minimal', 'Mild', 'Mild', 'Moderate', 'Moderate', 'Significant', 'Significant', 'Severe', 'Severe', 'Extreme'];
-  
+
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center gap-2 flex-wrap">
         <span className="text-sm font-medium text-foreground">Pain intensity</span>
-        <span 
-          className="px-3 py-1 rounded-full text-white text-sm font-semibold" 
-          style={{ backgroundColor: colors[value - 1] }}
-          data-testid="pain-level-badge"
-        >
-          {value}/10 — {labels[value - 1]}
-        </span>
+        {value !== null ? (
+          <span
+            className="px-3 py-1 rounded-full text-white text-sm font-semibold"
+            style={{ backgroundColor: colors[value - 1] }}
+            data-testid="pain-level-badge"
+          >
+            {value}/10 — {labels[value - 1]}
+          </span>
+        ) : (
+          <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-sm font-semibold">
+            Not set
+          </span>
+        )}
       </div>
       <div className="relative pt-1">
-        <div 
+        <div
           className="absolute inset-0 h-2 rounded-full mt-1"
           style={{ background: 'linear-gradient(to right, #22c55e, #84cc16, #eab308, #f97316, #ef4444, #991b1b)' }}
         />
         <Slider
-          value={[value]}
+          value={[value ?? 5]}
           onValueChange={(v) => onChange(v[0])}
           min={1}
           max={10}
@@ -556,6 +563,45 @@ function Chip({ selected, onClick, children, testId }: ChipProps) {
   );
 }
 
+interface RequiredDotProps {
+  completed: boolean;
+}
+
+function RequiredDot({ completed }: RequiredDotProps) {
+  return (
+    <div
+      className={`w-2 h-2 rounded-full flex-shrink-0 ${
+        completed ? 'bg-green-500' : 'bg-destructive'
+      }`}
+      title={completed ? 'Completed' : 'Required'}
+    />
+  );
+}
+
+interface SectionHeaderProps {
+  icon: React.ReactNode;
+  title: string;
+  required?: boolean;
+  completed?: boolean;
+}
+
+function SectionHeader({ icon, title, required, completed }: SectionHeaderProps) {
+  return (
+    <div className="flex items-center gap-2">
+      {required && <RequiredDot completed={completed || false} />}
+      <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+        {icon}
+      </div>
+      <h3 className="text-base font-bold text-foreground uppercase tracking-wide">
+        {title}
+      </h3>
+      {completed && (
+        <Check className="w-4 h-4 text-green-500 ml-auto" />
+      )}
+    </div>
+  );
+}
+
 interface IntakeFormProps {
   formData: FormData;
   setFormData: (data: FormData) => void;
@@ -569,252 +615,270 @@ function IntakeForm({ formData, setFormData }: IntakeFormProps) {
   const activities = ['Weight Training', 'Running', 'Cycling', 'Swimming', 'CrossFit/HIIT', 'Team Sports', 'Yoga/Pilates', 'Other'];
   const intensities = ['Light', 'Moderate', 'Intense'];
 
+  // Check completion status
+  const painProfileComplete = formData.painLevel !== null &&
+    formData.painTypes.length > 0 &&
+    formData.frequency !== '';
+
+  const historyComplete = formData.duration !== '' &&
+    formData.story.trim() !== '';
+
   return (
     <div className="space-y-6">
-      <section className="space-y-4">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <Activity className="w-4 h-4 text-destructive" />
-          Pain Characteristics
-        </h3>
-        
-        <PainSlider value={formData.painLevel} onChange={(v) => setFormData({...formData, painLevel: v})} />
-
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">Type of pain (select all that apply)</label>
-          <div className="flex flex-wrap gap-2">
-            {painTypes.map(type => (
-              <Chip
-                key={type}
-                selected={formData.painTypes?.includes(type)}
-                onClick={() => {
-                  const types = formData.painTypes?.includes(type)
-                    ? formData.painTypes.filter(t => t !== type)
-                    : [...(formData.painTypes || []), type];
-                  setFormData({...formData, painTypes: types});
-                }}
-                testId={`chip-pain-type-${type.toLowerCase().replace(/\//g, '-')}`}
-              >
-                {type}
-              </Chip>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">Frequency</label>
-          <div className="flex flex-wrap gap-2">
-            {frequencies.map(freq => (
-              <Chip 
-                key={freq} 
-                selected={formData.frequency === freq} 
-                onClick={() => setFormData({...formData, frequency: freq})}
-                testId={`chip-frequency-${freq.toLowerCase().replace(/\//g, '-')}`}
-              >
-                {freq}
-              </Chip>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <Clock className="w-4 h-4 text-destructive" />
-          History
-        </h3>
-
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">How long have you had this?</label>
-          <div className="flex flex-wrap gap-2">
-            {durations.map(dur => (
-              <Chip 
-                key={dur} 
-                selected={formData.duration === dur} 
-                onClick={() => setFormData({...formData, duration: dur})}
-                testId={`chip-duration-${dur.toLowerCase().replace(/\s/g, '-')}`}
-              >
-                {dur}
-              </Chip>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">What caused it?</label>
-          <div className="flex flex-wrap gap-2">
-            {causes.map(cause => (
-              <Chip
-                key={cause}
-                selected={formData.causes?.includes(cause)}
-                onClick={() => {
-                  const c = formData.causes?.includes(cause)
-                    ? formData.causes.filter(x => x !== cause)
-                    : [...(formData.causes || []), cause];
-                  setFormData({...formData, causes: c});
-                }}
-                testId={`chip-cause-${cause.toLowerCase().replace(/\//g, '-')}`}
-              >
-                {cause}
-              </Chip>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">Tell us more about how it happened...</label>
-          <Textarea
-            value={formData.story || ''}
-            onChange={(e) => setFormData({...formData, story: e.target.value})}
-            placeholder="Share your story - what were you doing, how did it feel, what happened after..."
-            className="resize-none"
-            rows={3}
-            data-testid="input-story"
+      {/* CARD 1: Pain Profile (Required) */}
+      <Card className="p-6 border-l-4 border-l-destructive/40">
+        <div className="space-y-5">
+          <SectionHeader
+            icon={<Activity className="w-4 h-4 text-destructive" />}
+            title="Pain Profile"
+            required
+            completed={painProfileComplete}
           />
-        </div>
 
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">Is it getting better or worse?</label>
-          <div className="flex flex-wrap gap-2">
-            {['Getting worse', 'No change', 'Slowly improving'].map(status => (
-              <Chip 
-                key={status} 
-                selected={formData.progress === status} 
-                onClick={() => setFormData({...formData, progress: status})}
-                testId={`chip-progress-${status.toLowerCase().replace(/\s/g, '-')}`}
-              >
-                {status}
-              </Chip>
-            ))}
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <RequiredDot completed={formData.painLevel !== null} />
+                <label className="block text-sm font-medium text-foreground">How bad is it right now?</label>
+              </div>
+              <PainSlider
+                value={formData.painLevel}
+                onChange={(v) => setFormData({...formData, painLevel: v})}
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-2">This helps us understand the severity</p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <RequiredDot completed={formData.painTypes.length > 0} />
+                <label className="block text-sm font-medium text-foreground">What does it feel like?</label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {painTypes.map(type => (
+                  <Chip
+                    key={type}
+                    selected={formData.painTypes?.includes(type)}
+                    onClick={() => {
+                      const types = formData.painTypes?.includes(type)
+                        ? formData.painTypes.filter(t => t !== type)
+                        : [...(formData.painTypes || []), type];
+                      setFormData({...formData, painTypes: types});
+                    }}
+                    testId={`chip-pain-type-${type.toLowerCase().replace(/\//g, '-')}`}
+                  >
+                    {type}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <RequiredDot completed={formData.frequency !== ''} />
+                <label className="block text-sm font-medium text-foreground">How often does it happen?</label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {frequencies.map(freq => (
+                  <Chip
+                    key={freq}
+                    selected={formData.frequency === freq}
+                    onClick={() => setFormData({...formData, frequency: freq})}
+                    testId={`chip-frequency-${freq.toLowerCase().replace(/\//g, '-')}`}
+                  >
+                    {freq}
+                  </Chip>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </Card>
 
-      <section className="space-y-4">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <Heart className="w-4 h-4 text-destructive" />
-          Triggers & Relief
-        </h3>
-
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">What makes it worse? What helps?</label>
-          <Textarea
-            value={formData.triggersAndRelief || ''}
-            onChange={(e) => setFormData({...formData, triggersAndRelief: e.target.value})}
-            placeholder="e.g., Sitting makes it worse, heat helps, stretching helps temporarily..."
-            className="resize-none"
-            rows={2}
-            data-testid="input-triggers-relief"
+      {/* CARD 2: Injury History (Required) */}
+      <Card className="p-6 border-l-4 border-l-destructive/40">
+        <div className="space-y-5">
+          <SectionHeader
+            icon={<Clock className="w-4 h-4 text-destructive" />}
+            title="Injury History"
+            required
+            completed={historyComplete}
           />
-        </div>
 
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">What have you tried so far?</label>
-          <Textarea
-            value={formData.triedSoFar || ''}
-            onChange={(e) => setFormData({...formData, triedSoFar: e.target.value})}
-            placeholder="e.g., Rest, ice, physio, stretching, medication..."
-            className="resize-none"
-            rows={2}
-            data-testid="input-tried-so-far"
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <RequiredDot completed={formData.duration !== ''} />
+                <label className="block text-sm font-medium text-foreground">How long have you had this?</label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {durations.map(dur => (
+                  <Chip
+                    key={dur}
+                    selected={formData.duration === dur}
+                    onClick={() => setFormData({...formData, duration: dur})}
+                    testId={`chip-duration-${dur.toLowerCase().replace(/\s/g, '-')}`}
+                  >
+                    {dur}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">What might have caused it?</label>
+              <div className="flex flex-wrap gap-2">
+                {causes.map(cause => (
+                  <Chip
+                    key={cause}
+                    selected={formData.causes?.includes(cause)}
+                    onClick={() => {
+                      const c = formData.causes?.includes(cause)
+                        ? formData.causes.filter(x => x !== cause)
+                        : [...(formData.causes || []), cause];
+                      setFormData({...formData, causes: c});
+                    }}
+                    testId={`chip-cause-${cause.toLowerCase().replace(/\//g, '-')}`}
+                  >
+                    {cause}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <RequiredDot completed={formData.story.trim() !== ''} />
+                <label className="block text-sm font-medium text-foreground">Tell us more about how it happened</label>
+              </div>
+              <Textarea
+                value={formData.story || ''}
+                onChange={(e) => setFormData({...formData, story: e.target.value})}
+                placeholder="Example: I was deadlifting and felt a sharp pain in my lower back on the third rep. It's been achy ever since..."
+                className="resize-none min-h-[120px]"
+                rows={5}
+                data-testid="input-story"
+              />
+              <p className="text-xs text-muted-foreground mt-2">Understanding the context helps us give better guidance</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">Is it getting better or worse?</label>
+              <div className="flex flex-wrap gap-2">
+                {['Getting worse', 'No change', 'Slowly improving'].map(status => (
+                  <Chip
+                    key={status}
+                    selected={formData.progress === status}
+                    onClick={() => setFormData({...formData, progress: status})}
+                    testId={`chip-progress-${status.toLowerCase().replace(/\s/g, '-')}`}
+                  >
+                    {status}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* CARD 3: Additional Context (Optional) */}
+      <Card className="p-6">
+        <div className="space-y-5">
+          <SectionHeader
+            icon={<Heart className="w-4 h-4 text-destructive" />}
+            title="Additional Context"
           />
-        </div>
-      </section>
 
-      <section className="space-y-4">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <Dumbbell className="w-4 h-4 text-destructive" />
-          Your Activity Level
-        </h3>
+          <div className="space-y-6">
+            <div className="space-y-4 pb-6 border-b border-border">
+              <h4 className="text-sm font-semibold text-foreground">Triggers & Relief</h4>
 
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">What do you do? (select all)</label>
-          <div className="flex flex-wrap gap-2">
-            {activities.map(act => (
-              <Chip
-                key={act}
-                selected={formData.activities?.includes(act)}
-                onClick={() => {
-                  const a = formData.activities?.includes(act)
-                    ? formData.activities.filter(x => x !== act)
-                    : [...(formData.activities || []), act];
-                  setFormData({...formData, activities: a});
-                }}
-                testId={`chip-activity-${act.toLowerCase().replace(/\//g, '-')}`}
-              >
-                {act}
-              </Chip>
-            ))}
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">What makes it worse? What helps?</label>
+                <Textarea
+                  value={formData.triggersAndRelief || ''}
+                  onChange={(e) => setFormData({...formData, triggersAndRelief: e.target.value})}
+                  placeholder="Example: Sitting for long periods makes it worse. Standing and walking around helps. Heat provides temporary relief..."
+                  className="resize-none min-h-[100px]"
+                  rows={4}
+                  data-testid="input-triggers-relief"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">What have you tried so far?</label>
+                <Textarea
+                  value={formData.triedSoFar || ''}
+                  onChange={(e) => setFormData({...formData, triedSoFar: e.target.value})}
+                  placeholder="Example: Ice packs for 3 days, ibuprofen, foam rolling, stretching hamstrings..."
+                  className="resize-none min-h-[100px]"
+                  rows={4}
+                  data-testid="input-tried-so-far"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 pb-6 border-b border-border">
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Dumbbell className="w-4 h-4 text-destructive" />
+                Your Activity Level
+              </h4>
+
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">What activities do you do?</label>
+                <div className="flex flex-wrap gap-2">
+                  {activities.map(act => (
+                    <Chip
+                      key={act}
+                      selected={formData.activities?.includes(act)}
+                      onClick={() => {
+                        const a = formData.activities?.includes(act)
+                          ? formData.activities.filter(x => x !== act)
+                          : [...(formData.activities || []), act];
+                        setFormData({...formData, activities: a});
+                      }}
+                      testId={`chip-activity-${act.toLowerCase().replace(/\//g, '-')}`}
+                    >
+                      {act}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">Typical intensity</label>
+                <div className="flex flex-wrap gap-2">
+                  {intensities.map(int => (
+                    <Chip
+                      key={int}
+                      selected={formData.intensity === int}
+                      onClick={() => setFormData({...formData, intensity: int})}
+                      testId={`chip-intensity-${int.toLowerCase()}`}
+                    >
+                      {int}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                <Brain className="w-4 h-4 text-destructive" />
+                Your Goal
+              </h4>
+              <Textarea
+                value={formData.goals || ''}
+                onChange={(e) => setFormData({...formData, goals: e.target.value})}
+                placeholder="Example: I want to get back to running 5k without pain, or be able to pick up my kids without wincing..."
+                className="resize-none min-h-[100px]"
+                rows={4}
+                data-testid="input-goals"
+              />
+            </div>
           </div>
         </div>
-
-        <div>
-          <label className="block text-sm text-muted-foreground mb-2">Typical intensity</label>
-          <div className="flex flex-wrap gap-2">
-            {intensities.map(int => (
-              <Chip 
-                key={int} 
-                selected={formData.intensity === int} 
-                onClick={() => setFormData({...formData, intensity: int})}
-                testId={`chip-intensity-${int.toLowerCase()}`}
-              >
-                {int}
-              </Chip>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <Brain className="w-4 h-4 text-destructive" />
-          Your Goal
-        </h3>
-        <Textarea
-          value={formData.goals || ''}
-          onChange={(e) => setFormData({...formData, goals: e.target.value})}
-          placeholder="What would you like to be able to do again?"
-          className="resize-none"
-          rows={2}
-          data-testid="input-goals"
-        />
-      </section>
-
-      <section className="space-y-4">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-destructive" />
-          Concern Level
-        </h3>
-        
-        <div className="space-y-3">
-          <div className="flex justify-between items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-foreground">How worried are you?</span>
-            <Badge variant="secondary" data-testid="concern-level-badge">
-              {formData.concernLevel}/10
-            </Badge>
-          </div>
-          <Slider
-            value={[formData.concernLevel]}
-            onValueChange={(v) => setFormData({...formData, concernLevel: v[0]})}
-            min={1}
-            max={10}
-            step={1}
-            data-testid="concern-slider"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Not worried</span>
-            <span>Very worried</span>
-          </div>
-        </div>
-
-        <Textarea
-          value={formData.concernReason || ''}
-          onChange={(e) => setFormData({...formData, concernReason: e.target.value})}
-          placeholder="What concerns you most about this issue?"
-          className="resize-none"
-          rows={2}
-          data-testid="input-concern-reason"
-        />
-      </section>
+      </Card>
     </div>
   );
 }
@@ -852,8 +916,8 @@ function BrushSelector({ size, setSize }: BrushSelectorProps) {
 function generateMockAnalysis(selectedMuscles: string[], formData: FormData) {
   const allMuscles = { ...MUSCLES_FRONT, ...MUSCLES_BACK };
   const muscleLabels = selectedMuscles.map(m => allMuscles[m]?.label || m);
-  
-  const painLevel = formData.painLevel;
+
+  const painLevel = formData.painLevel ?? 5; // Default to 5 if null (shouldn't happen in practice)
   const isAcute = formData.duration === '< 1 week' || formData.duration === '1-4 weeks';
   const isChronic = formData.duration === '6+ months' || formData.duration === '> 1 year';
   
@@ -1306,7 +1370,7 @@ export default function BodyPainAssessment() {
   const [brushSize, setBrushSize] = useState(12);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [formData, setFormData] = useState<FormData>({
-    painLevel: 5,
+    painLevel: null,
     painTypes: [],
     frequency: '',
     duration: '',
@@ -1318,7 +1382,7 @@ export default function BodyPainAssessment() {
     activities: [],
     intensity: '',
     goals: '',
-    concernLevel: 5,
+    concernLevel: null,
     concernReason: ''
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1361,9 +1425,9 @@ export default function BodyPainAssessment() {
     setSelectedMuscles([]);
     setPainPoints([]);
     setFormData({
-      painLevel: 5, painTypes: [], frequency: '', duration: '', causes: [],
-      story: '', progress: '', triggersAndRelief: '', triedSoFar: '', activities: [], 
-      intensity: '', goals: '', concernLevel: 5, concernReason: ''
+      painLevel: null, painTypes: [], frequency: '', duration: '', causes: [],
+      story: '', progress: '', triggersAndRelief: '', triedSoFar: '', activities: [],
+      intensity: '', goals: '', concernLevel: null, concernReason: ''
     });
     setAnalysisResult(null);
     setStep(1);
@@ -1725,21 +1789,29 @@ export default function BodyPainAssessment() {
         )}
 
         {step === 3 && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-xl font-bold text-foreground">Tell us more</h2>
               <p className="text-sm text-muted-foreground">A few questions to understand your injury</p>
             </div>
 
-            <Card className="p-5">
-              <IntakeForm formData={formData} setFormData={setFormData} />
-            </Card>
+            <IntakeForm formData={formData} setFormData={setFormData} />
 
             <div className="flex justify-between gap-4">
               <Button variant="secondary" onClick={() => setStep(2)} data-testid="button-back-step3">
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
               </Button>
-              <Button onClick={() => setStep(4)} data-testid="button-continue-step3">
+              <Button
+                onClick={() => setStep(4)}
+                disabled={
+                  formData.painLevel === null ||
+                  formData.painTypes.length === 0 ||
+                  formData.frequency === '' ||
+                  formData.duration === '' ||
+                  formData.story.trim() === ''
+                }
+                data-testid="button-continue-step3"
+              >
                 Get Analysis <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
@@ -1763,7 +1835,7 @@ export default function BodyPainAssessment() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
                 { label: 'Areas', value: selectedMuscles.length },
-                { label: 'Pain', value: `${formData.painLevel}/10` },
+                { label: 'Pain', value: formData.painLevel !== null ? `${formData.painLevel}/10` : 'Not set' },
                 { label: 'Duration', value: formData.duration || '—' },
                 { label: 'Points', value: painPoints.length }
               ].map(({ label, value }) => (

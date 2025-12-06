@@ -22,8 +22,10 @@ import {
   History,
   Save,
   BookOpen,
-  Shield
+  Shield,
+  Share2
 } from 'lucide-react';
+import { AnalysisLoader } from '@/components/AnalysisLoader';
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -1062,13 +1064,7 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
   }, [cachedAnalysis, selectedMuscles, painPoints, formData, onComplete]);
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        <p className="text-sm text-muted-foreground">AI is analyzing your assessment...</p>
-        <p className="text-xs text-muted-foreground">This may take a moment</p>
-      </div>
-    );
+    return <AnalysisLoader />;
   }
 
   if (!analysis) return null;
@@ -1086,98 +1082,136 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
   };
 
   return (
-    <div className="space-y-5" data-testid="analysis-results">
+    <div className="space-y-6" data-testid="analysis-results">
       {error && (
         <div className="rounded-lg p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm">
           {error}
         </div>
       )}
 
-      {/* 1. Summary */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800/30">
-        <h4 className="font-semibold text-foreground mb-2">Summary</h4>
-        <p className="text-muted-foreground text-sm leading-relaxed">{analysis.summary}</p>
+      {/* 1. Summary - Hero Section */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-primary/5 to-transparent rounded-xl p-5 sm:p-6 border border-primary/20">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-primary" />
+            </div>
+            <h4 className="font-bold text-lg text-foreground">Your Assessment</h4>
+          </div>
+          <p className="text-muted-foreground leading-relaxed">{analysis.summary}</p>
+        </div>
       </div>
 
       {/* 2. Understanding What's Happening */}
       {analysis.understandingWhatsHappening && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-100 dark:border-amber-800/30">
-          <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
-            <BookOpen className="w-4 h-4" />
-            Understanding What's Happening
-          </h4>
-          <p className="text-muted-foreground text-sm leading-relaxed">{analysis.understandingWhatsHappening}</p>
+        <div className="bg-amber-50/50 dark:bg-amber-900/10 rounded-xl p-5 border border-amber-200/50 dark:border-amber-800/30">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <h4 className="font-bold text-foreground">Understanding What's Happening</h4>
+          </div>
+          <p className="text-muted-foreground leading-relaxed">{analysis.understandingWhatsHappening}</p>
         </div>
       )}
 
       {/* 3. The Good News / A Silver Lining */}
       {analysis.reassurance?.message && (
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-100 dark:border-green-800/30">
-          <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2 flex items-center gap-2">
-            <Heart className="w-4 h-4" />
-            {analysis.reassurance.title}
-          </h4>
-          <p className="text-green-700 dark:text-green-300 text-sm leading-relaxed">{analysis.reassurance.message}</p>
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 dark:from-green-900/20 dark:to-emerald-900/10 rounded-xl p-5 border border-green-200/50 dark:border-green-800/30">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <Heart className="w-4 h-4 text-green-600 dark:text-green-400" />
+            </div>
+            <h4 className="font-bold text-green-800 dark:text-green-200">{analysis.reassurance.title}</h4>
+          </div>
+          <p className="text-green-700 dark:text-green-300 leading-relaxed">{analysis.reassurance.message}</p>
         </div>
       )}
 
-      {/* 4. Possible Conditions - Expandable */}
-      <div>
-        <h4 className="font-semibold text-foreground mb-3">Possible Conditions</h4>
-        <div className="space-y-2">
-          {analysis.possibleConditions.map((c, i) => (
-            <div key={i} className="bg-card rounded-lg border overflow-hidden">
-              <button
-                onClick={() => toggleCondition(i)}
-                className="w-full p-3 flex items-center justify-between text-left hover-elevate"
-                data-testid={`condition-toggle-${i}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center text-sm font-medium text-muted-foreground">
-                    {i + 1}
-                  </div>
-                  <span className="font-medium text-foreground text-sm">{c.name}</span>
-                  <Badge variant="secondary" className="text-xs">{c.likelihood}</Badge>
-                </div>
-                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedConditions.has(i) ? 'rotate-180' : ''}`} />
-              </button>
-              {expandedConditions.has(i) && (
-                <div className="px-3 pb-3 pt-0 ml-9">
-                  <p className="text-sm text-muted-foreground leading-relaxed">{c.description}</p>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+      {/* Section Divider */}
+      <div className="flex items-center gap-4 py-2">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">What This Could Be</span>
+        <div className="flex-1 h-px bg-border" />
       </div>
 
-      {/* 5. Watch For */}
+      {/* 4. Possible Conditions - Expandable */}
+      <div className="space-y-3">
+        {analysis.possibleConditions.map((c, i) => (
+          <div key={i} className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <button
+              onClick={() => toggleCondition(i)}
+              className="w-full p-4 flex items-center justify-between text-left hover-elevate"
+              data-testid={`condition-toggle-${i}`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  c.likelihood === 'Likely' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' :
+                  c.likelihood === 'Possible' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
+                  'bg-muted text-muted-foreground'
+                }`}>
+                  {i + 1}
+                </div>
+                <div>
+                  <span className="font-semibold text-foreground">{c.name}</span>
+                  <Badge variant={c.likelihood === 'Likely' ? 'default' : 'secondary'} className="ml-2 text-xs">{c.likelihood}</Badge>
+                </div>
+              </div>
+              <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${expandedConditions.has(i) ? 'rotate-180' : ''}`} />
+            </button>
+            {expandedConditions.has(i) && (
+              <div className="px-4 pb-4 pt-0 ml-11 border-t border-border/50 mt-0 pt-3">
+                <p className="text-sm text-muted-foreground leading-relaxed">{c.description}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* 5. Watch For - Important Warning */}
       {analysis.watchFor?.length > 0 && (
-        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-100 dark:border-red-800/30">
-          <h4 className="font-semibold text-red-800 dark:text-red-200 mb-3 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            Watch For
-          </h4>
-          <ul className="space-y-2">
+        <div className="bg-gradient-to-br from-red-50 to-rose-50/50 dark:from-red-900/20 dark:to-rose-900/10 rounded-xl p-5 border border-red-200/50 dark:border-red-800/30">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+            </div>
+            <h4 className="font-bold text-red-800 dark:text-red-200">When to Seek Help</h4>
+          </div>
+          <ul className="space-y-3">
             {analysis.watchFor.map((item, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
-                <span className="text-red-500 mt-0.5">•</span>
-                {item}
+              <li key={i} className="flex items-start gap-3 text-sm text-red-700 dark:text-red-300">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 flex-shrink-0" />
+                <span>{item}</span>
               </li>
             ))}
           </ul>
         </div>
       )}
 
+      {/* Section Divider */}
+      <div className="flex items-center gap-4 py-2">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Recovery Plan</span>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+
       {/* 6. Recovery Principles */}
       {analysis.recoveryPrinciples?.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-foreground mb-3">Recovery Principles</h4>
-          <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Shield className="w-4 h-4 text-primary" />
+            </div>
+            <h4 className="font-bold text-foreground">Recovery Principles</h4>
+          </div>
+          <div className="grid gap-2">
             {analysis.recoveryPrinciples.map((principle, i) => (
               <div key={i} className="flex items-start gap-3 p-3 bg-card rounded-lg border">
-                <Check className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                <span className="text-foreground text-sm">{principle}</span>
+                <div className="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+                </div>
+                <span className="text-foreground text-sm leading-relaxed">{principle}</span>
               </div>
             ))}
           </div>
@@ -1186,24 +1220,34 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
 
       {/* 7. Avoid/Modify & 8. Generally Safe - Side by side */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-100 dark:border-red-800/30">
-          <h4 className="font-semibold text-red-800 dark:text-red-200 mb-3 text-sm">Avoid/Modify</h4>
+        <div className="bg-gradient-to-br from-red-50 to-rose-50/50 dark:from-red-900/15 dark:to-rose-900/10 rounded-xl p-4 border border-red-200/50 dark:border-red-800/30">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <X className="w-3 h-3 text-red-600 dark:text-red-400" />
+            </div>
+            <h4 className="font-bold text-red-800 dark:text-red-200 text-sm">Avoid/Modify</h4>
+          </div>
           <ul className="space-y-2">
             {analysis.avoid?.map((a, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
-                <X className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                {a}
+                <div className="w-1 h-1 rounded-full bg-red-400 mt-2 flex-shrink-0" />
+                <span>{a}</span>
               </li>
             ))}
           </ul>
         </div>
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-100 dark:border-green-800/30">
-          <h4 className="font-semibold text-green-800 dark:text-green-200 mb-3 text-sm">Generally Safe</h4>
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50/50 dark:from-green-900/15 dark:to-emerald-900/10 rounded-xl p-4 border border-green-200/50 dark:border-green-800/30">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <Check className="w-3 h-3 text-green-600 dark:text-green-400" />
+            </div>
+            <h4 className="font-bold text-green-800 dark:text-green-200 text-sm">Generally Safe</h4>
+          </div>
           <ul className="space-y-2">
             {analysis.safeToTry?.map((s, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-green-700 dark:text-green-300">
-                <Check className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                {s}
+                <div className="w-1 h-1 rounded-full bg-green-400 mt-2 flex-shrink-0" />
+                <span>{s}</span>
               </li>
             ))}
           </ul>
@@ -1211,23 +1255,33 @@ function AIAnalysis({ formData, selectedMuscles, painPoints, onComplete, cachedA
       </div>
 
       {/* 9. Expected Timeline */}
-      <div className="bg-muted/50 rounded-lg p-4">
-        <h4 className="font-semibold text-foreground mb-2">Expected Timeline</h4>
-        <p className="text-muted-foreground text-sm leading-relaxed">{analysis.timeline}</p>
+      <div className="bg-gradient-to-r from-muted/50 to-muted/30 rounded-xl p-5 border border-border/50">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <Clock className="w-4 h-4 text-primary" />
+          </div>
+          <h4 className="font-bold text-foreground">Expected Timeline</h4>
+        </div>
+        <p className="text-muted-foreground leading-relaxed">{analysis.timeline}</p>
       </div>
 
       {/* 10. Resources */}
       {analysis.resources?.length > 0 && (
-        <div>
-          <h4 className="font-semibold text-foreground mb-3">Expert Resources</h4>
-          <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            </div>
+            <h4 className="font-bold text-foreground">Expert Resources</h4>
+          </div>
+          <div className="grid gap-2">
             {analysis.resources.map((r, i) => (
-              <div key={i} className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800/30">
+              <div key={i} className="p-4 bg-gradient-to-br from-purple-50 to-violet-50/50 dark:from-purple-900/15 dark:to-violet-900/10 rounded-xl border border-purple-200/50 dark:border-purple-800/30">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-purple-900 dark:text-purple-200 text-sm">{r.name}</span>
-                  <Badge variant="outline" className="text-xs">{r.type}</Badge>
+                  <span className="font-semibold text-purple-900 dark:text-purple-200">{r.name}</span>
+                  <Badge variant="outline" className="text-xs border-purple-300 dark:border-purple-700">{r.type}</Badge>
                 </div>
-                <p className="text-xs text-purple-700 dark:text-purple-300">{r.why}</p>
+                <p className="text-sm text-purple-700 dark:text-purple-300 leading-relaxed">{r.why}</p>
               </div>
             ))}
           </div>
@@ -1544,7 +1598,7 @@ export default function BodyPainAssessment() {
               </div>
 
               <div className="flex justify-center">
-                <div className="w-full max-w-[160px] h-[240px] sm:max-w-[180px] sm:h-[270px]">
+                <div className="w-full max-w-[220px] h-[330px] sm:max-w-[280px] sm:h-[420px] md:max-w-[320px] md:h-[480px]">
                   <AnatomicalBody
                     muscles={view === 'front' ? MUSCLES_FRONT : MUSCLES_BACK}
                     selectedMuscles={selectedMuscles}
@@ -1638,7 +1692,7 @@ export default function BodyPainAssessment() {
               </div>
 
               <div className="flex justify-center">
-                <div className="w-full max-w-[160px] h-[240px] sm:max-w-[180px] sm:h-[270px]">
+                <div className="w-full max-w-[220px] h-[330px] sm:max-w-[280px] sm:h-[420px] md:max-w-[320px] md:h-[480px]">
                   <AnatomicalBody
                     muscles={view === 'front' ? MUSCLES_FRONT : MUSCLES_BACK}
                     selectedMuscles={selectedMuscles}
@@ -1729,6 +1783,14 @@ export default function BodyPainAssessment() {
                 cachedAnalysis={analysisResult}
               />
             </Card>
+
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-3">
+              <Share2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Share with your healthcare provider</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Download the PDF report to share with your physiotherapist or doctor for personalized guidance.</p>
+              </div>
+            </div>
 
             <div className="flex flex-col sm:flex-row justify-between gap-4">
               <Button variant="secondary" onClick={() => setStep(3)} data-testid="button-back-step4">

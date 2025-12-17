@@ -289,3 +289,91 @@ Provide a brief, empathetic analysis with:
 
 Be human and hopeful. Response in JSON format.`;
 }
+
+/**
+ * Build prompt for diary entry AI feedback
+ *
+ * @param entry - The current diary entry
+ * @param assessment - The assessment this diary is linked to
+ * @param recentEntries - Recent diary entries for context
+ * @returns Prompt string for Claude
+ */
+export function buildDiaryPrompt(
+  entry: {
+    entryType: string;
+    painLevel: number | null;
+    entryText: string;
+  },
+  assessment: {
+    formData: any;
+    analysis: any;
+    selectedMuscles: string[];
+    createdAt: Date;
+  },
+  recentEntries: Array<{ painLevel: number | null; entryType: string; createdAt: Date }>
+): string {
+  // Calculate trend from recent entries
+  const recentPainLevels = recentEntries
+    .filter(e => e.painLevel !== null)
+    .map(e => e.painLevel as number);
+
+  const avgPain = recentPainLevels.length > 0
+    ? (recentPainLevels.reduce((a, b) => a + b, 0) / recentPainLevels.length).toFixed(1)
+    : 'N/A';
+
+  let trend = 'stable';
+  if (recentPainLevels.length >= 2) {
+    const recentAvg = recentPainLevels.slice(0, Math.ceil(recentPainLevels.length / 2))
+      .reduce((a, b) => a + b, 0) / Math.ceil(recentPainLevels.length / 2);
+    const olderAvg = recentPainLevels.slice(Math.ceil(recentPainLevels.length / 2))
+      .reduce((a, b) => a + b, 0) / Math.floor(recentPainLevels.length / 2);
+
+    if (recentAvg < olderAvg - 0.5) trend = 'improving';
+    else if (recentAvg > olderAvg + 0.5) trend = 'worsening';
+  }
+
+  const primaryBodyPart = assessment.selectedMuscles?.[0] || 'affected area';
+  const assessmentDate = new Date(assessment.createdAt).toLocaleDateString();
+
+  return `You are a compassionate pain management companion helping someone with their ${primaryBodyPart} pain.
+
+YOUR ROLE:
+- Provide brief, warm, specific feedback (under 150 words)
+- Be like a supportive coach who knows their situation
+- Reference their goals, what has helped before, and current trends
+- Stay focused on physical pain and movement
+
+CONTEXT FROM ASSESSMENT (${assessmentDate}):
+- Body part: ${assessment.selectedMuscles?.join(', ') || 'Not specified'}
+- Pain level at assessment: ${assessment.formData?.painLevel || 'N/A'}/10
+- Goals: ${assessment.formData?.goals || 'Not specified'}
+- What helps: ${assessment.formData?.improveFactors?.join(', ') || assessment.formData?.triggersAndRelief || 'Not specified'}
+- Triggers: ${assessment.formData?.worsenFactors?.join(', ') || 'Not specified'}
+- Key insight from analysis: ${assessment.analysis?.reassurance?.message?.slice(0, 200) || 'Focus on gradual, consistent progress'}
+
+RECENT DIARY TREND (last ${recentEntries.length} entries):
+- Average pain: ${avgPain}/10
+- Trend: ${trend}
+- Entry types: ${recentEntries.map(e => e.entryType).join(', ')}
+
+TODAY'S ENTRY:
+- Type: ${entry.entryType}
+- Pain level: ${entry.painLevel || 'Not specified'}/10
+- Entry: "${entry.entryText}"
+
+RESPONSE GUIDELINES:
+1. Be warm and brief (2-3 short paragraphs max)
+2. For PAIN entries: Normalize fluctuations, offer reassurance, remind them of what helps
+3. For WORKOUT questions: Consider their triggers and safe activities from the assessment
+4. For PROGRESSION: Celebrate wins, encourage sustainable pacing
+5. Use "you" language, reference their specific situation
+6. Keep response under 150 words
+
+BOUNDARIES (handle gently):
+- Physical pain only: If they mention emotional distress, acknowledge it briefly and refocus on physical management: "I hear you - chronic pain affects mood. For emotional support, a counselor specializing in chronic conditions can help. Let's focus on the physical side..."
+- No diagnoses or medication advice: "That's worth discussing with your doctor..."
+- For urgent concerns (severe/new symptoms): "This sounds like something to check with your doctor soon"
+- Stay in scope: musculoskeletal pain management
+
+Respond naturally, warmly, and helpfully in plain text (no JSON, no formatting, just your response).`;
+}

@@ -1,12 +1,14 @@
-import { 
-  users, 
+import {
+  users,
   assessments,
-  type User, 
+  diaryEntries,
+  type User,
   type UpsertUser,
-  type Assessment
+  type Assessment,
+  type DiaryEntry
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -16,6 +18,14 @@ export interface IStorage {
   getAssessmentsByUser(userId: string): Promise<Assessment[]>;
   createAssessment(assessment: typeof assessments.$inferInsert): Promise<Assessment>;
   deleteAssessment(id: number): Promise<boolean>;
+
+  // Diary methods
+  createDiaryEntry(entry: typeof diaryEntries.$inferInsert): Promise<DiaryEntry>;
+  getDiaryEntry(id: number): Promise<DiaryEntry | undefined>;
+  getDiaryEntriesByAssessment(assessmentId: number, userId: string): Promise<DiaryEntry[]>;
+  getDiaryEntriesByUser(userId: string): Promise<DiaryEntry[]>;
+  updateDiaryEntry(id: number, entryText: string): Promise<DiaryEntry>;
+  deleteDiaryEntry(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -63,6 +73,47 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAssessment(id: number): Promise<boolean> {
     const result = await db.delete(assessments).where(eq(assessments.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Diary methods implementation
+  async createDiaryEntry(insertEntry: typeof diaryEntries.$inferInsert): Promise<DiaryEntry> {
+    const [entry] = await db.insert(diaryEntries).values(insertEntry).returning();
+    return entry;
+  }
+
+  async getDiaryEntry(id: number): Promise<DiaryEntry | undefined> {
+    const [entry] = await db.select().from(diaryEntries).where(eq(diaryEntries.id, id));
+    return entry || undefined;
+  }
+
+  async getDiaryEntriesByAssessment(assessmentId: number, userId: string): Promise<DiaryEntry[]> {
+    return await db
+      .select()
+      .from(diaryEntries)
+      .where(and(eq(diaryEntries.assessmentId, assessmentId), eq(diaryEntries.userId, userId)))
+      .orderBy(desc(diaryEntries.createdAt));
+  }
+
+  async getDiaryEntriesByUser(userId: string): Promise<DiaryEntry[]> {
+    return await db
+      .select()
+      .from(diaryEntries)
+      .where(eq(diaryEntries.userId, userId))
+      .orderBy(desc(diaryEntries.createdAt));
+  }
+
+  async updateDiaryEntry(id: number, entryText: string): Promise<DiaryEntry> {
+    const [entry] = await db
+      .update(diaryEntries)
+      .set({ entryText, updatedAt: new Date() })
+      .where(eq(diaryEntries.id, id))
+      .returning();
+    return entry;
+  }
+
+  async deleteDiaryEntry(id: number): Promise<boolean> {
+    const result = await db.delete(diaryEntries).where(eq(diaryEntries.id, id)).returning();
     return result.length > 0;
   }
 }

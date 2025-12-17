@@ -36,10 +36,12 @@ MendMate is an interactive pain assessment tool that helps users track and docum
 8. **Auto-save** - Automatic localStorage persistence during assessment
 9. **Assessment History** - Timeline view with pain trends, statistics, and comparison
 10. **PDF Reports** - Professional medical reports with pain summaries and recommendations
+11. **Recovery Diary** - Track progress, get AI feedback, and journal about your recovery journey (localStorage-based)
 
 ## Pages
 - `/` - Main assessment wizard (works immediately, no login required)
 - `/history` - Assessment history timeline (reads from localStorage)
+- `/diary/:assessmentId` - Recovery diary for each saved assessment
 
 ## Data Storage
 - All assessments stored in browser localStorage under key 'assessmentHistory'

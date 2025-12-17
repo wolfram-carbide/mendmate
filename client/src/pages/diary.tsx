@@ -37,25 +37,25 @@ const entryTypeConfig = {
   pain: {
     icon: MessageSquare,
     label: "How I'm feeling",
-    color: "bg-amber-100 text-amber-800 border-amber-300",
+    color: "bg-primary/10 text-primary border-primary/30",
     placeholder: "How are you feeling today? Any changes in your pain level or new symptoms?",
   },
   workout: {
     icon: Dumbbell,
     label: "Workout check",
-    color: "bg-blue-100 text-blue-800 border-blue-300",
+    color: "bg-accent/10 text-accent border-accent/30",
     placeholder: "What activity or workout are you thinking about? Any concerns about whether it's safe?",
   },
   progression: {
     icon: TrendingUp,
     label: "Progress update",
-    color: "bg-green-100 text-green-800 border-green-300",
+    color: "bg-chart-5/10 text-chart-5 border-chart-5/30",
     placeholder: "What progress have you noticed? Any activities that are easier now?",
   },
   general: {
     icon: MessageSquare,
     label: "General note",
-    color: "bg-gray-100 text-gray-800 border-gray-300",
+    color: "bg-secondary/30 text-secondary-foreground border-secondary",
     placeholder: "What's on your mind about your recovery?",
   },
 };
@@ -178,7 +178,7 @@ export default function DiaryPage() {
   if (assessmentLoading || entriesLoading) {
     return (
       <div className="container mx-auto px-4 py-8 flex justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -218,7 +218,7 @@ export default function DiaryPage() {
       </div>
 
       {/* New Entry Card */}
-      <Card className="mb-8 border-2 border-teal-200">
+      <Card className="mb-8 border-2 border-primary/20">
         <CardHeader>
           <CardTitle>New Entry</CardTitle>
           <CardDescription>
@@ -235,7 +235,6 @@ export default function DiaryPage() {
                   key={type}
                   variant={selectedType === type ? "default" : "outline"}
                   onClick={() => setSelectedType(type)}
-                  className={selectedType === type ? "bg-teal-600 hover:bg-teal-700" : ""}
                 >
                   <TypeIcon className="mr-2 h-4 w-4" />
                   {entryTypeConfig[type].label}
@@ -297,7 +296,6 @@ export default function DiaryPage() {
             <Button
               onClick={() => handleSubmit(true)}
               disabled={isSubmitting || !entryText.trim()}
-              className="bg-teal-600 hover:bg-teal-700"
             >
               {isSubmitting ? (
                 <>
@@ -328,7 +326,7 @@ export default function DiaryPage() {
             const date = new Date(entry.createdAt);
 
             return (
-              <Card key={entry.id} className="border-l-4 border-teal-500">
+              <Card key={entry.id} className="border-l-4 border-primary">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
@@ -359,8 +357,8 @@ export default function DiaryPage() {
                     {entry.entryText}
                   </div>
                   {entry.aiResponse && (
-                    <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
-                      <p className="text-sm font-medium text-teal-900 mb-2">AI Feedback:</p>
+                    <div className="bg-accent/10 border border-accent/20 rounded-lg p-4">
+                      <p className="text-sm font-medium text-accent-foreground mb-2">AI Feedback:</p>
                       <p className="text-gray-700 whitespace-pre-wrap">{entry.aiResponse}</p>
                     </div>
                   )}

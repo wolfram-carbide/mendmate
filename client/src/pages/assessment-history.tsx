@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { 
-  Clock, 
-  Calendar, 
-  TrendingUp, 
-  TrendingDown, 
-  Minus, 
-  Trash2, 
-  FileText, 
-  Eye, 
+import {
+  Clock,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Trash2,
+  FileText,
+  Eye,
   ArrowLeft,
   Activity,
   MapPin,
@@ -16,9 +16,10 @@ import {
   CheckCircle2,
   Info,
   Loader2,
-  Download
+  Download,
+  BookOpen
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -378,6 +379,16 @@ export default function AssessmentHistory() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+                          <Link href={`/diary/${assessment.id}`}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="View Diary"
+                              data-testid={`button-diary-${assessment.id}`}
+                            >
+                              <BookOpen className="w-4 h-4" />
+                            </Button>
+                          </Link>
                           <Button
                             variant="ghost"
                             size="icon"

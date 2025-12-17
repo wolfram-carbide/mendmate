@@ -1,12 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAssessmentSchema } from "@shared/schema";
+import { insertAssessmentSchema, insertDiaryEntrySchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { z } from "zod";
 import { generatePdfBuffer } from "./pdfGenerator";
 import Anthropic from "@anthropic-ai/sdk";
-import { buildAnalysisPrompt } from "./promptTemplates";
+import { buildAnalysisPrompt, buildDiaryPrompt } from "./promptTemplates";
 import { checkRateLimit } from "./rateLimiter";
 
 export async function registerRoutes(
@@ -136,7 +136,7 @@ export async function registerRoutes(
   app.post("/api/assessments/export-pdf", async (req: any, res) => {
     try {
       const { selectedMuscles, painPoints, formData, analysis } = req.body;
-      
+
       if (!formData) {
         return res.status(400).json({ error: "Assessment data is required" });
       }
@@ -155,6 +155,192 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error generating PDF:", error);
       res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  });
+
+  // Diary endpoints
+  app.post("/api/diary/entries", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { assessmentId, entryType, painLevel, entryText, requestAiFeedback } = req.body;
+
+      // Validate basic entry data
+      const validatedData = insertDiaryEntrySchema.parse({
+        userId,
+        assessmentId,
+        entryType,
+        painLevel,
+        entryText,
+      });
+
+      // Verify assessment belongs to user
+      const assessment = await storage.getAssessment(assessmentId);
+      if (!assessment || assessment.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      let aiResponse = null;
+
+      // Generate AI feedback if requested
+      if (requestAiFeedback) {
+        try {
+          // Get recent entries for context
+          const recentEntries = await storage.getDiaryEntriesByAssessment(assessmentId, userId);
+          const last7Entries = recentEntries.slice(0, 7);
+
+          // Build prompt
+          const prompt = buildDiaryPrompt(
+            { entryType, painLevel, entryText },
+            assessment,
+            last7Entries
+          );
+
+          // Call Claude
+          const anthropic = new Anthropic({
+            apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+            baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+          });
+
+          const message = await anthropic.messages.create({
+            model: "claude-sonnet-4-5",
+            max_tokens: 1024,
+            messages: [{ role: "user", content: prompt }],
+          });
+
+          const content = message.content[0];
+          if (content.type === "text") {
+            aiResponse = content.text.trim();
+          }
+        } catch (aiError) {
+          console.error("AI feedback generation failed:", aiError);
+          // Continue without AI response rather than failing the entire request
+        }
+      }
+
+      // Create diary entry
+      const entry = await storage.createDiaryEntry({
+        ...validatedData,
+        aiResponse,
+      });
+
+      res.status(201).json(entry);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid diary entry data", details: error.errors });
+      }
+      console.error("Failed to create diary entry:", error);
+      res.status(500).json({ error: "Failed to create diary entry" });
+    }
+  });
+
+  app.get("/api/diary/entries", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const assessmentId = req.query.assessmentId;
+
+      if (!assessmentId) {
+        return res.status(400).json({ error: "assessmentId query parameter is required" });
+      }
+
+      const id = parseInt(assessmentId as string, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid assessmentId" });
+      }
+
+      // Verify assessment belongs to user
+      const assessment = await storage.getAssessment(id);
+      if (!assessment || assessment.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const entries = await storage.getDiaryEntriesByAssessment(id, userId);
+      res.json(entries);
+    } catch (error) {
+      console.error("Failed to fetch diary entries:", error);
+      res.status(500).json({ error: "Failed to fetch diary entries" });
+    }
+  });
+
+  app.get("/api/diary/entries/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid entry ID" });
+      }
+
+      const entry = await storage.getDiaryEntry(id);
+      if (!entry) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+
+      const userId = req.user.claims.sub;
+      if (entry.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      res.json(entry);
+    } catch (error) {
+      console.error("Failed to fetch diary entry:", error);
+      res.status(500).json({ error: "Failed to fetch diary entry" });
+    }
+  });
+
+  app.put("/api/diary/entries/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid entry ID" });
+      }
+
+      const { entryText } = req.body;
+      if (!entryText || typeof entryText !== "string") {
+        return res.status(400).json({ error: "entryText is required" });
+      }
+
+      const entry = await storage.getDiaryEntry(id);
+      if (!entry) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+
+      const userId = req.user.claims.sub;
+      if (entry.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const updatedEntry = await storage.updateDiaryEntry(id, entryText);
+      res.json(updatedEntry);
+    } catch (error) {
+      console.error("Failed to update diary entry:", error);
+      res.status(500).json({ error: "Failed to update diary entry" });
+    }
+  });
+
+  app.delete("/api/diary/entries/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid entry ID" });
+      }
+
+      const entry = await storage.getDiaryEntry(id);
+      if (!entry) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+
+      const userId = req.user.claims.sub;
+      if (entry.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const success = await storage.deleteDiaryEntry(id);
+      if (!success) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete diary entry:", error);
+      res.status(500).json({ error: "Failed to delete diary entry" });
     }
   });
 

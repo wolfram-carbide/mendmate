@@ -272,16 +272,16 @@ function createPainLocationSection(painPoints: PainPoint[], selectedMuscles: str
   }
 
   if (painPoints.length > 0) {
-    content.push({ text: `Marked Pain Points (${painPoints.length} total)`, style: 'label' });
-    
+    content.push({ text: 'Marked Pain Areas', style: 'label' });
+
     const pointsSummary: string[] = [];
     if (frontPoints.length > 0) {
       const regions = new Set(frontPoints.map(p => getBodyRegion(p.y)));
-      pointsSummary.push(`Front View: ${frontPoints.length} point(s) - ${Array.from(regions).join(', ')}`);
+      pointsSummary.push(`Front View: ${Array.from(regions).join(', ')}`);
     }
     if (backPoints.length > 0) {
       const regions = new Set(backPoints.map(p => getBodyRegion(p.y)));
-      pointsSummary.push(`Back View: ${backPoints.length} point(s) - ${Array.from(regions).join(', ')}`);
+      pointsSummary.push(`Back View: ${Array.from(regions).join(', ')}`);
     }
     content.push({ ul: pointsSummary, style: 'value' });
   }

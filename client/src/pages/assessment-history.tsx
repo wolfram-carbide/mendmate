@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import {
   Clock,
@@ -17,7 +17,8 @@ import {
   Info,
   Loader2,
   Download,
-  BookOpen
+  BookOpen,
+  Upload
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -153,6 +154,9 @@ export default function AssessmentHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState<number | null>(null);
+  const [isExportingDiary, setIsExportingDiary] = useState(false);
+  const [isImportingDiary, setIsImportingDiary] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const savedHistory = localStorage.getItem('assessmentHistory');
@@ -222,6 +226,95 @@ export default function AssessmentHistory() {
     URL.revokeObjectURL(a.href);
   };
 
+  const exportAllDiaryEntries = () => {
+    setIsExportingDiary(true);
+    try {
+      // Get diary entries from localStorage
+      const diaryEntries = localStorage.getItem('diaryEntries');
+      const entries = diaryEntries ? JSON.parse(diaryEntries) : [];
+
+      const blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `diary-entries-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      toast({
+        title: "Diary exported",
+        description: `Successfully exported ${entries.length} diary entries.`
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export failed",
+        description: "Failed to export diary entries",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExportingDiary(false);
+    }
+  };
+
+  const importDiaryEntries = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImportingDiary(true);
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const importedData = JSON.parse(e.target?.result as string);
+
+        if (!Array.isArray(importedData)) {
+          throw new Error('Invalid format: expected an array of diary entries');
+        }
+
+        // Get existing entries
+        const existingEntries = localStorage.getItem('diaryEntries');
+        const existing = existingEntries ? JSON.parse(existingEntries) : [];
+
+        // Merge entries - avoid duplicates by checking IDs
+        const existingIds = new Set(existing.map((e: any) => e.id));
+        const newEntries = importedData.filter((entry: any) => !existingIds.has(entry.id));
+        const mergedEntries = [...existing, ...newEntries];
+
+        // Save to localStorage
+        localStorage.setItem('diaryEntries', JSON.stringify(mergedEntries));
+
+        toast({
+          title: "Import successful",
+          description: `Imported ${newEntries.length} new diary entries. Total: ${mergedEntries.length}`
+        });
+      } catch (error) {
+        console.error('Import error:', error);
+        toast({
+          title: "Import failed",
+          description: error instanceof Error ? error.message : "Failed to import diary entries",
+          variant: "destructive"
+        });
+      } finally {
+        setIsImportingDiary(false);
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+
+    reader.onerror = () => {
+      toast({
+        title: "Import failed",
+        description: "Failed to read file",
+        variant: "destructive"
+      });
+      setIsImportingDiary(false);
+    };
+
+    reader.readAsText(file);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -245,12 +338,51 @@ export default function AssessmentHistory() {
               <p className="text-xs text-muted-foreground hidden sm:block">Track your pain over time</p>
             </div>
           </div>
-          <Link href="/">
-            <Button variant="outline" data-testid="button-new-assessment">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              New Assessment
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportAllDiaryEntries}
+              disabled={isExportingDiary}
+              data-testid="button-export-diary"
+              title="Export all diary entries"
+            >
+              {isExportingDiary ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              <span className="ml-2 hidden sm:inline">Export Diary</span>
             </Button>
-          </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImportingDiary}
+              data-testid="button-import-diary"
+              title="Import diary entries from JSON"
+            >
+              {isImportingDiary ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              <span className="ml-2 hidden sm:inline">Import Diary</span>
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={importDiaryEntries}
+              accept=".json"
+              style={{ display: 'none' }}
+            />
+            <Link href="/">
+              <Button variant="outline" size="sm" data-testid="button-new-assessment">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">New Assessment</span>
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 

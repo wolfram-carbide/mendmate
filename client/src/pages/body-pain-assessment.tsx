@@ -2046,7 +2046,7 @@ export default function BodyPainAssessment() {
               <Button variant="secondary" onClick={() => setStep(4)} data-testid="button-back-step5">
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
               </Button>
-              <Button variant="outline" onClick={resetAll} data-testid="button-new-assessment">
+              <Button variant="outline" onClick={reset} data-testid="button-new-assessment">
                 Start New Assessment
               </Button>
             </div>

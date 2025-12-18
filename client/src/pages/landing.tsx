@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Logo } from '@/components/Logo';
 import { Activity, Shield, Clock, FileText, ArrowRight } from 'lucide-react';
 
 export default function Landing() {
@@ -8,7 +9,7 @@ export default function Landing() {
       <header className="border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Activity className="h-6 w-6 text-primary" />
+            <Logo size={28} />
             <span className="font-semibold text-lg" data-testid="text-app-title">MendMate</span>
           </div>
           <a href="/api/login">

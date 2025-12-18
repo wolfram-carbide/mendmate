@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Clock,
@@ -16,10 +16,9 @@ import {
   CheckCircle2,
   Info,
   Loader2,
-  Download,
-  BookOpen,
-  Upload
+  BookOpen
 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,9 +153,6 @@ export default function AssessmentHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState<number | null>(null);
-  const [isExportingDiary, setIsExportingDiary] = useState(false);
-  const [isImportingDiary, setIsImportingDiary] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const savedHistory = localStorage.getItem('assessmentHistory');
@@ -226,94 +222,7 @@ export default function AssessmentHistory() {
     URL.revokeObjectURL(a.href);
   };
 
-  const exportAllDiaryEntries = () => {
-    setIsExportingDiary(true);
-    try {
-      // Get diary entries from localStorage
-      const diaryEntries = localStorage.getItem('diaryEntries');
-      const entries = diaryEntries ? JSON.parse(diaryEntries) : [];
-
-      const blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `diary-entries-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-
-      toast({
-        title: "Diary exported",
-        description: `Successfully exported ${entries.length} diary entries.`
-      });
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: "Export failed",
-        description: "Failed to export diary entries",
-        variant: "destructive"
-      });
-    } finally {
-      setIsExportingDiary(false);
-    }
-  };
-
-  const importDiaryEntries = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsImportingDiary(true);
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      try {
-        const importedData = JSON.parse(e.target?.result as string);
-
-        if (!Array.isArray(importedData)) {
-          throw new Error('Invalid format: expected an array of diary entries');
-        }
-
-        // Get existing entries
-        const existingEntries = localStorage.getItem('diaryEntries');
-        const existing = existingEntries ? JSON.parse(existingEntries) : [];
-
-        // Merge entries - avoid duplicates by checking IDs
-        const existingIds = new Set(existing.map((e: any) => e.id));
-        const newEntries = importedData.filter((entry: any) => !existingIds.has(entry.id));
-        const mergedEntries = [...existing, ...newEntries];
-
-        // Save to localStorage
-        localStorage.setItem('diaryEntries', JSON.stringify(mergedEntries));
-
-        toast({
-          title: "Import successful",
-          description: `Imported ${newEntries.length} new diary entries. Total: ${mergedEntries.length}`
-        });
-      } catch (error) {
-        console.error('Import error:', error);
-        toast({
-          title: "Import failed",
-          description: error instanceof Error ? error.message : "Failed to import diary entries",
-          variant: "destructive"
-        });
-      } finally {
-        setIsImportingDiary(false);
-        // Reset file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-    };
-
-    reader.onerror = () => {
-      toast({
-        title: "Import failed",
-        description: "Failed to read file",
-        variant: "destructive"
-      });
-      setIsImportingDiary(false);
-    };
-
-    reader.readAsText(file);
-  };
+  // Removed diary export/import - diary entries are now managed per assessment via the server API
 
   if (isLoading) {
     return (
@@ -330,59 +239,18 @@ export default function AssessmentHistory() {
       <header className="bg-card/80 backdrop-blur-sm border-b sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center shadow-sm">
-              <Activity className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <Logo size={40} />
             <div>
               <h1 className="text-base font-bold text-foreground" data-testid="history-title">Assessment History</h1>
               <p className="text-xs text-muted-foreground hidden sm:block">Track your pain over time</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportAllDiaryEntries}
-              disabled={isExportingDiary}
-              data-testid="button-export-diary"
-              title="Export all diary entries"
-            >
-              {isExportingDiary ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              <span className="ml-2 hidden sm:inline">Export Diary</span>
+          <Link href="/">
+            <Button variant="outline" size="sm" data-testid="button-new-assessment">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">New Assessment</span>
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isImportingDiary}
-              data-testid="button-import-diary"
-              title="Import diary entries from JSON"
-            >
-              {isImportingDiary ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
-              <span className="ml-2 hidden sm:inline">Import Diary</span>
-            </Button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={importDiaryEntries}
-              accept=".json"
-              style={{ display: 'none' }}
-            />
-            <Link href="/">
-              <Button variant="outline" size="sm" data-testid="button-new-assessment">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">New Assessment</span>
-              </Button>
-            </Link>
-          </div>
+          </Link>
         </div>
       </header>
 
@@ -405,7 +273,7 @@ export default function AssessmentHistory() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
+                  <Logo size={24} />
                   Progress Overview
                 </CardTitle>
               </CardHeader>

@@ -1,19 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  ChevronRight, 
-  ChevronLeft, 
+import {
+  ChevronRight,
+  ChevronLeft,
   ChevronDown,
-  X, 
-  Check, 
-  AlertCircle, 
-  Activity, 
-  Clock, 
-  Dumbbell, 
-  Heart, 
-  Brain, 
-  Trash2, 
-  RotateCcw, 
+  X,
+  Check,
+  AlertCircle,
+  Activity,
+  Clock,
+  Dumbbell,
+  Heart,
+  Brain,
+  Trash2,
+  RotateCcw,
   Circle,
   Download,
   Upload,
@@ -23,7 +23,10 @@ import {
   Save,
   BookOpen,
   Shield,
-  Share2
+  Share2,
+  Plus,
+  MessageSquare,
+  TrendingUp
 } from 'lucide-react';
 import { AnalysisLoader } from '@/components/AnalysisLoader';
 import { Logo } from '@/components/Logo';
@@ -553,9 +556,9 @@ function Chip({ selected, onClick, children, testId }: ChipProps) {
       type="button"
       onClick={onClick}
       className={`px-3 py-1.5 rounded-full text-sm transition-all border ${
-        selected 
-          ? 'bg-destructive text-destructive-foreground border-destructive' 
-          : 'bg-card text-card-foreground border-border hover:border-destructive/50'
+        selected
+          ? 'bg-primary text-primary-foreground border-primary'
+          : 'bg-card text-card-foreground border-border hover:border-primary/50'
       }`}
       data-testid={testId}
     >
@@ -590,7 +593,7 @@ function SectionHeader({ icon, title, required, completed }: SectionHeaderProps)
   return (
     <div className="flex items-center gap-2">
       {required && <RequiredDot completed={completed || false} />}
-      <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
         {icon}
       </div>
       <h3 className="text-base font-bold text-foreground uppercase tracking-wide">
@@ -627,10 +630,10 @@ function IntakeForm({ formData, setFormData }: IntakeFormProps) {
   return (
     <div className="space-y-6">
       {/* CARD 1: Pain Profile (Required) */}
-      <Card className="p-6 border-l-4 border-l-destructive/40">
+      <Card className="p-6 border-l-4 border-l-primary/40">
         <div className="space-y-5">
           <SectionHeader
-            icon={<Activity className="w-4 h-4 text-destructive" />}
+            icon={<Activity className="w-4 h-4 text-primary" />}
             title="Pain Profile"
             required
             completed={painProfileComplete}
@@ -697,10 +700,10 @@ function IntakeForm({ formData, setFormData }: IntakeFormProps) {
       </Card>
 
       {/* CARD 2: Injury History (Required) */}
-      <Card className="p-6 border-l-4 border-l-destructive/40">
+      <Card className="p-6 border-l-4 border-l-primary/40">
         <div className="space-y-5">
           <SectionHeader
-            icon={<Clock className="w-4 h-4 text-destructive" />}
+            icon={<Clock className="w-4 h-4 text-primary" />}
             title="Injury History"
             required
             completed={historyComplete}
@@ -786,7 +789,7 @@ function IntakeForm({ formData, setFormData }: IntakeFormProps) {
       <Card className="p-6">
         <div className="space-y-5">
           <SectionHeader
-            icon={<Heart className="w-4 h-4 text-destructive" />}
+            icon={<Heart className="w-4 h-4 text-primary" />}
             title="Additional Context"
           />
 
@@ -821,7 +824,7 @@ function IntakeForm({ formData, setFormData }: IntakeFormProps) {
 
             <div className="space-y-4 pb-6 border-b border-border">
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Dumbbell className="w-4 h-4 text-destructive" />
+                <Dumbbell className="w-4 h-4 text-primary" />
                 Your Activity Level
               </h4>
 
@@ -865,7 +868,7 @@ function IntakeForm({ formData, setFormData }: IntakeFormProps) {
 
             <div>
               <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-                <Brain className="w-4 h-4 text-destructive" />
+                <Brain className="w-4 h-4 text-primary" />
                 Your Goal
               </h4>
               <Textarea
@@ -903,7 +906,7 @@ function BrushSelector({ size, setSize }: BrushSelectorProps) {
           key={value}
           onClick={() => setSize(value)}
           className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-            size === value ? 'bg-destructive text-destructive-foreground' : 'text-muted-foreground hover:bg-muted/80'
+            size === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted/80'
           }`}
           data-testid={`brush-size-${label.toLowerCase()}`}
         >
@@ -1360,11 +1363,29 @@ const STEPS = [
   { num: 1, label: 'Select Areas' },
   { num: 2, label: 'Mark Pain' },
   { num: 3, label: 'Details' },
-  { num: 4, label: 'Analysis' }
+  { num: 4, label: 'Analysis' },
+  { num: 5, label: 'Recovery Companion' }
 ];
 
 export default function BodyPainAssessment() {
-  const [step, setStep] = useState(1);
+  // Check if user has completed assessments and should land on Recovery Companion
+  const getInitialStep = () => {
+    try {
+      const history = localStorage.getItem('assessmentHistory');
+      if (history) {
+        const assessments = JSON.parse(history);
+        // If user has at least one completed assessment, start on Recovery Companion
+        if (Array.isArray(assessments) && assessments.length > 0) {
+          return 5;
+        }
+      }
+    } catch {
+      console.error('Failed to check assessment history');
+    }
+    return 1;
+  };
+
+  const [step, setStep] = useState(getInitialStep());
   const [view, setView] = useState<'front' | 'back'>('front');
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
   const [painPoints, setPainPoints] = useState<PainPoint[]>([]);
@@ -1610,10 +1631,10 @@ export default function BodyPainAssessment() {
                 <button
                   onClick={() => setStep(s.num)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap text-sm transition-all ${
-                    step === s.num 
-                      ? 'bg-destructive text-destructive-foreground' 
-                      : step > s.num 
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                    step === s.num
+                      ? 'bg-primary text-primary-foreground'
+                      : step > s.num
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                         : 'bg-muted text-muted-foreground'
                   }`}
                   data-testid={`step-button-${s.num}`}
@@ -1676,12 +1697,12 @@ export default function BodyPainAssessment() {
               </div>
 
               {selectedMuscles.length > 0 && (
-                <div className="mt-4 p-3 bg-destructive/10 rounded-lg">
+                <div className="mt-4 p-3 bg-primary/10 rounded-lg">
                   <div className="flex flex-wrap gap-1.5">
                     {getMuscleLabels().map((label, i) => (
-                      <Badge 
-                        key={i} 
-                        variant="destructive"
+                      <Badge
+                        key={i}
+                        variant="default"
                         className="flex items-center gap-1"
                         data-testid={`selected-muscle-${i}`}
                       >
@@ -1868,9 +1889,9 @@ export default function BodyPainAssessment() {
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
               </Button>
               <div className="flex flex-wrap gap-2 justify-end">
-                <Button 
-                  variant="default" 
-                  onClick={saveToHistory} 
+                <Button
+                  variant="outline"
+                  onClick={saveToHistory}
                   disabled={isSaved || !analysisResult}
                   title={!analysisResult ? 'Wait for analysis to complete' : undefined}
                   data-testid="button-save-assessment"
@@ -1893,7 +1914,141 @@ export default function BodyPainAssessment() {
                   )}
                   {isExportingPdf ? 'Generating...' : 'PDF'}
                 </Button>
+                <Button variant="default" onClick={() => setStep(5)} data-testid="button-continue-step4">
+                  Recovery Companion <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="space-y-5">
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-foreground">Recovery Companion</h2>
+              <p className="text-sm text-muted-foreground">Track your progress and get ongoing support</p>
+            </div>
+
+            <Card className="p-5 bg-primary/5 border-primary/20">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Activity className="w-5 h-5 text-primary" />
+                </div>
+                <div className="space-y-3 flex-1">
+                  <div>
+                    <p className="font-medium text-foreground">Welcome back!</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Access your assessment history and diary to continue your recovery journey, or start a new assessment to track new pain areas.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href="/assessment-history">
+                      <Button variant="default">
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        View Assessment History
+                      </Button>
+                    </Link>
+                    <Button variant="outline" onClick={() => setStep(1)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Assessment
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 border-l-4 border-l-primary">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Pain Diary & Journal</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Document your recovery journey with daily entries. Track pain levels, workouts, and progress updates with AI-powered feedback.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Track Progress</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Monitor your recovery over time. See trends in your pain levels and celebrate improvements.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Get AI Guidance</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Ask questions about workouts, pain changes, or recovery concerns and get instant AI-powered insights.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {isSaved ? (
+              <Card className="p-5 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                <div className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-3 flex-1">
+                    <div>
+                      <p className="font-medium text-green-900 dark:text-green-100">Assessment Saved!</p>
+                      <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                        Your recovery companion is ready. Access your diary from Assessment History to start tracking your journey.
+                      </p>
+                    </div>
+                    <Link href="/assessment-history">
+                      <Button variant="default" className="w-full sm:w-auto">
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        Go to Assessment History
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </Card>
+            ) : (
+              <Card className="p-5 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-3 flex-1">
+                    <div>
+                      <p className="font-medium text-amber-900 dark:text-amber-100">Save Your Assessment First</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                        To access your recovery companion and diary, please save your assessment to history.
+                      </p>
+                    </div>
+                    <Button
+                      variant="default"
+                      onClick={saveToHistory}
+                      disabled={!analysisResult}
+                      className="w-full sm:w-auto"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save to History
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            <div className="flex justify-between gap-4">
+              <Button variant="secondary" onClick={() => setStep(4)} data-testid="button-back-step5">
+                <ChevronLeft className="w-4 h-4 mr-1" /> Back
+              </Button>
+              <Button variant="outline" onClick={resetAll} data-testid="button-new-assessment">
+                Start New Assessment
+              </Button>
             </div>
           </div>
         )}

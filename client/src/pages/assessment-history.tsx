@@ -16,7 +16,9 @@ import {
   CheckCircle2,
   Info,
   Loader2,
-  BookOpen
+  BookOpen,
+  Download,
+  Upload
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Link, useLocation } from "wouter";

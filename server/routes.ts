@@ -524,5 +524,69 @@ export async function registerRoutes(
     }
   });
 
+  // Diary AI Feedback endpoint (no authentication required - localStorage based)
+  app.post("/api/diary/ai-feedback", async (req, res) => {
+    try {
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+      const rateCheck = checkRateLimit(clientIp);
+      
+      if (!rateCheck.allowed) {
+        return res.status(429).json({
+          error: "Rate limit exceeded",
+          message: rateCheck.message,
+          retryAfter: rateCheck.retryAfter,
+        });
+      }
+
+      const { entryType, entryText, painLevel, assessment } = req.body;
+
+      if (!entryText || !assessment) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const anthropic = new Anthropic({
+        apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      });
+
+      const prompt = `You are a supportive recovery companion helping someone track their pain recovery journey.
+
+Context about their condition:
+- Pain areas: ${assessment.selectedMuscles?.join(', ') || 'Not specified'}
+- Original pain level: ${assessment.painLevel || 'Not specified'}/10
+- Their goals: ${assessment.goals || 'Not specified'}
+
+Their diary entry (type: ${entryType || 'general'}):
+"${entryText}"
+${painLevel !== null ? `Current pain level: ${painLevel}/10` : ''}
+
+Provide a brief, warm, and encouraging response (2-3 sentences) that:
+1. Acknowledges their specific experience mentioned in the entry
+2. Offers one relevant insight or gentle encouragement based on their journey
+3. Maintains a supportive, non-clinical tone
+
+Keep it conversational and human. Don't use medical jargon or give specific medical advice.`;
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 300,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const content = message.content[0];
+      if (content.type !== "text") {
+        throw new Error("Unexpected response type");
+      }
+
+      res.json({ feedback: content.text.trim() });
+    } catch (error: any) {
+      console.error("Diary AI feedback error:", error);
+      res.status(500).json({ 
+        error: "Failed to generate feedback",
+        message: error.message 
+      });
+    }
+  });
+
   return httpServer;
 }

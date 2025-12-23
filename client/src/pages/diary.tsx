@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MessageSquare, Dumbbell, TrendingUp, ArrowLeft, Trash2 } from "lucide-react";
+import { Loader2, MessageSquare, Dumbbell, TrendingUp, ArrowLeft, Trash2, Plus, Sparkles, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type EntryType = "pain" | "workout" | "progression" | "general";
@@ -31,6 +31,19 @@ interface Assessment {
     goals: string;
   };
   createdAt: string;
+}
+
+interface Insight {
+  title: string;
+  description: string;
+  category: "trend" | "correlation" | "progress" | "suggestion";
+}
+
+interface InsightsResponse {
+  dateRange: string;
+  entryCount: number;
+  timeSpanDays: number;
+  insights: Insight[];
 }
 
 const entryTypeConfig = {
@@ -70,6 +83,9 @@ export default function DiaryPage() {
   const [painLevel, setPainLevel] = useState<number | null>(null);
   const [entryText, setEntryText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
+  const [insights, setInsights] = useState<InsightsResponse | null>(null);
+  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
 
   // Fetch assessment details
   const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
@@ -163,6 +179,34 @@ export default function DiaryPage() {
     }
   };
 
+  const fetchInsights = async () => {
+    if (!assessmentId) return;
+
+    setIsLoadingInsights(true);
+    try {
+      const response = await fetch(`/api/diary/insights/${assessmentId}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch insights");
+      }
+
+      const data = await response.json();
+      setInsights(data);
+      setShowInsights(true);
+    } catch (error: any) {
+      toast({
+        title: "Failed to generate insights",
+        description: error.message || "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingInsights(false);
+    }
+  };
+
   if (!assessmentId) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -203,19 +247,102 @@ export default function DiaryPage() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* Header */}
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => setLocation("/assessment-history")}
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Assessments
-        </Button>
-        <h1 className="text-3xl font-bold text-gray-900">Pain Diary: {primaryBodyPart}</h1>
+        <div className="flex justify-between items-start mb-4 gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => setLocation("/assessment-history")}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Assessments
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/assessment")}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New Assessment
+          </Button>
+        </div>
+        <h1 className="text-3xl font-bold text-gray-900">Recovery Companion: {primaryBodyPart}</h1>
         <p className="text-gray-600 mt-2">
-          Track your progress, get guidance, and manage your recovery
+          Your daily recovery partner - track progress, log entries, and get AI-powered insights
         </p>
       </div>
+
+      {/* AI Insights Button */}
+      <div className="mb-6">
+        <Button
+          onClick={fetchInsights}
+          disabled={isLoadingInsights || entries.length === 0}
+          variant="outline"
+          className="w-full sm:w-auto border-primary/30 hover:bg-primary/10"
+        >
+          {isLoadingInsights ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating Insights...
+            </>
+          ) : (
+            <>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Get AI Insights
+            </>
+          )}
+        </Button>
+        {entries.length === 0 && (
+          <p className="text-sm text-muted-foreground mt-2">
+            Add at least one diary entry to generate insights
+          </p>
+        )}
+      </div>
+
+      {/* AI Insights Display */}
+      {showInsights && insights && (
+        <Card className="mb-8 border-2 border-primary/20 bg-primary/5">
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  AI Insights: Your Recovery Journey
+                </CardTitle>
+                <CardDescription>
+                  Analysis of {insights.entryCount} entries from {insights.dateRange} ({insights.timeSpanDays} days)
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowInsights(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {insights.insights.map((insight, index) => {
+              const categoryColors = {
+                trend: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+                correlation: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+                progress: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800",
+                suggestion: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+              };
+
+              return (
+                <Card key={index} className={`border-l-4 p-4 ${categoryColors[insight.category]}`}>
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <Badge variant="outline" className={categoryColors[insight.category]}>
+                      {insight.category}
+                    </Badge>
+                    {insight.title}
+                  </h3>
+                  <p className="text-sm">{insight.description}</p>
+                </Card>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* New Entry Card */}
       <Card className="mb-8 border-2 border-primary/20">

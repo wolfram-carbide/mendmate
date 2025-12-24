@@ -377,3 +377,109 @@ BOUNDARIES (handle gently):
 
 Respond naturally, warmly, and helpfully in plain text (no JSON, no formatting, just your response).`;
 }
+
+/**
+ * Build prompt for AI Insights summary of diary entries
+ *
+ * @param entries - Last 15 diary entries (or fewer if user has less)
+ * @param assessment - The assessment these entries belong to
+ * @returns Prompt string for Claude to generate 5 key insights
+ */
+export function buildInsightsPrompt(
+  entries: Array<{
+    entryType: string;
+    painLevel: number | null;
+    entryText: string;
+    aiResponse: string | null;
+    createdAt: Date;
+  }>,
+  assessment: {
+    formData: any;
+    selectedMuscles: string[];
+    createdAt: Date;
+  }
+): string {
+  // Calculate date range
+  const sortedEntries = [...entries].sort((a, b) =>
+    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+  const oldestEntry = sortedEntries[0];
+  const newestEntry = sortedEntries[sortedEntries.length - 1];
+  const dateRange = `${new Date(oldestEntry.createdAt).toLocaleDateString()} - ${new Date(newestEntry.createdAt).toLocaleDateString()}`;
+
+  // Calculate time span in days
+  const timeSpanDays = Math.ceil(
+    (new Date(newestEntry.createdAt).getTime() - new Date(oldestEntry.createdAt).getTime()) /
+    (1000 * 60 * 60 * 24)
+  );
+
+  const primaryBodyPart = assessment.selectedMuscles?.[0] || 'affected area';
+  const assessmentDate = new Date(assessment.createdAt).toLocaleDateString();
+  const initialPainLevel = assessment.formData?.painLevel || 'N/A';
+
+  // Build entries summary
+  const entriesSummary = entries
+    .map((entry, index) => {
+      const date = new Date(entry.createdAt).toLocaleDateString();
+      const daysFromFirst = Math.ceil(
+        (new Date(entry.createdAt).getTime() - new Date(oldestEntry.createdAt).getTime()) /
+        (1000 * 60 * 60 * 24)
+      );
+      return `Entry ${index + 1} (Day ${daysFromFirst}, ${date}):
+- Type: ${entry.entryType}
+- Pain level: ${entry.painLevel || 'Not specified'}
+- Note: "${entry.entryText}"`;
+    })
+    .join('\n\n');
+
+  return `You are a compassionate recovery coach analyzing a user's diary entries to provide insights about their ${primaryBodyPart} pain recovery journey.
+
+CRITICAL CONTEXT - TIME AWARENESS:
+- These ${entries.length} entries span ${timeSpanDays} days (${dateRange})
+- If entries are far apart (weeks/months), recovery trajectory may be different than if they're daily entries
+- Consider entry frequency in your insights - infrequent logging vs. daily logging tells different stories
+- Pay attention to time gaps - did they stop logging because they felt better? Or worse?
+
+ASSESSMENT BASELINE (${assessmentDate}):
+- Body part: ${assessment.selectedMuscles?.join(', ') || 'Not specified'}
+- Initial pain level: ${initialPainLevel}/10
+- Goals: ${assessment.formData?.goals || 'Not specified'}
+- What helps: ${assessment.formData?.improveFactors?.join(', ') || 'Not specified'}
+
+DIARY ENTRIES TO ANALYZE:
+${entriesSummary}
+
+YOUR TASK:
+Generate exactly 5 key insights about their recovery journey. These should be:
+1. SPECIFIC to their entries - reference actual things they mentioned
+2. PATTERN-BASED - identify trends in pain levels, activities, what helps/hurts
+3. DATE-AWARE - acknowledge if entries are daily vs. weekly vs. sporadic
+4. ACTIONABLE - when relevant, suggest specific next steps
+5. ENCOURAGING - celebrate progress, normalize setbacks
+
+INSIGHT CATEGORIES (use a mix):
+- Pain trend analysis (improving/stable/worsening, and why)
+- Activity correlations (what seems to help or hurt)
+- Recurring themes or concerns
+- Progress observations (wins to celebrate)
+- Actionable suggestions based on patterns
+
+RESPONSE FORMAT:
+Return a JSON object with this exact structure:
+{
+  "dateRange": "${dateRange}",
+  "entryCount": ${entries.length},
+  "timeSpanDays": ${timeSpanDays},
+  "insights": [
+    {
+      "title": "Brief insight title (3-5 words)",
+      "description": "1-2 sentences explaining this insight. Be specific and reference their actual entries.",
+      "category": "trend" | "correlation" | "progress" | "suggestion"
+    }
+    // ... exactly 5 insights total
+  ]
+}
+
+Be warm, be specific, be helpful. This is about helping them understand their recovery journey.`;
+}
+

@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { AnalysisLoader } from '@/components/AnalysisLoader';
 import { Logo } from '@/components/Logo';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -1363,34 +1363,18 @@ const STEPS = [
   { num: 1, label: 'Select Areas' },
   { num: 2, label: 'Mark Pain' },
   { num: 3, label: 'Details' },
-  { num: 4, label: 'Analysis' },
-  { num: 5, label: 'Recovery Companion' }
+  { num: 4, label: 'Analysis' }
 ];
 
 export default function BodyPainAssessment() {
-  // Check if user has completed assessments and should land on Recovery Companion
-  const getInitialStep = () => {
-    try {
-      const history = localStorage.getItem('assessmentHistory');
-      if (history) {
-        const assessments = JSON.parse(history);
-        // If user has at least one completed assessment, start on Recovery Companion
-        if (Array.isArray(assessments) && assessments.length > 0) {
-          return 5;
-        }
-      }
-    } catch {
-      console.error('Failed to check assessment history');
-    }
-    return 1;
-  };
-
-  const [step, setStep] = useState(getInitialStep());
+  const [, setLocation] = useLocation();
+  const [step, setStep] = useState(1);
   const [view, setView] = useState<'front' | 'back'>('front');
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
   const [painPoints, setPainPoints] = useState<PainPoint[]>([]);
   const [brushSize, setBrushSize] = useState(12);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [isSavingToServer, setIsSavingToServer] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     painLevel: null,
     painTypes: [],
@@ -1425,13 +1409,20 @@ export default function BodyPainAssessment() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('painAssessment', JSON.stringify({ 
-      selectedMuscles, 
-      painPoints, 
-      formData, 
-      analysis: analysisResult 
+    localStorage.setItem('painAssessment', JSON.stringify({
+      selectedMuscles,
+      painPoints,
+      formData,
+      analysis: analysisResult
     }));
   }, [selectedMuscles, painPoints, formData, analysisResult]);
+
+  // Auto-save and redirect when analysis completes
+  useEffect(() => {
+    if (analysisResult && step === 4) {
+      autoSaveAndRedirect();
+    }
+  }, [analysisResult]);
 
   const handleMuscleClick = (muscle: string) => {
     setSelectedMuscles(prev => 
@@ -1474,7 +1465,7 @@ export default function BodyPainAssessment() {
     try {
       const savedHistory = localStorage.getItem('assessmentHistory');
       const history = savedHistory ? JSON.parse(savedHistory) : [];
-      
+
       const newAssessment = {
         id: Date.now(),
         selectedMuscles,
@@ -1483,10 +1474,10 @@ export default function BodyPainAssessment() {
         analysis: analysisResult,
         createdAt: new Date().toISOString(),
       };
-      
+
       history.unshift(newAssessment);
       localStorage.setItem('assessmentHistory', JSON.stringify(history));
-      
+
       setIsSaved(true);
       toast({
         title: "Assessment saved",
@@ -1499,6 +1490,71 @@ export default function BodyPainAssessment() {
         description: "Failed to save assessment. Please try again.",
         variant: "destructive",
       });
+    }
+  };
+
+  // Auto-save assessment to server and redirect to Recovery Companion
+  const autoSaveAndRedirect = async () => {
+    if (!analysisResult || isSavingToServer) return;
+
+    setIsSavingToServer(true);
+    try {
+      // Save to localStorage first (for backwards compatibility)
+      const savedHistory = localStorage.getItem('assessmentHistory');
+      const history = savedHistory ? JSON.parse(savedHistory) : [];
+
+      const newAssessment = {
+        id: Date.now(),
+        selectedMuscles,
+        painPoints,
+        formData,
+        analysis: analysisResult,
+        createdAt: new Date().toISOString(),
+      };
+
+      history.unshift(newAssessment);
+      localStorage.setItem('assessmentHistory', JSON.stringify(history));
+
+      // Save to server
+      const response = await fetch('/api/assessments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          selectedMuscles,
+          painPoints,
+          formData,
+          analysis: analysisResult,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save assessment to server');
+      }
+
+      const savedAssessment = await response.json();
+
+      // Show success toast
+      toast({
+        title: "Assessment saved",
+        description: "Your assessment has been saved. Redirecting to Recovery Companion...",
+      });
+
+      // Clear the temporary assessment data
+      localStorage.removeItem('painAssessment');
+
+      // Redirect to the Recovery Companion (diary) for this assessment
+      setTimeout(() => {
+        setLocation(`/diary/${savedAssessment.id}`);
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to auto-save assessment:', error);
+      toast({
+        title: "Error saving assessment",
+        description: "Failed to save to server. You can still access your assessment locally.",
+        variant: "destructive",
+      });
+      setIsSavingToServer(false);
     }
   };
   
@@ -1914,141 +1970,7 @@ export default function BodyPainAssessment() {
                   )}
                   {isExportingPdf ? 'Generating...' : 'PDF'}
                 </Button>
-                <Button variant="default" onClick={() => setStep(5)} data-testid="button-continue-step4">
-                  Recovery Companion <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {step === 5 && (
-          <div className="space-y-5">
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-foreground">Recovery Companion</h2>
-              <p className="text-sm text-muted-foreground">Track your progress and get ongoing support</p>
-            </div>
-
-            <Card className="p-5 bg-primary/5 border-primary/20">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                  <Activity className="w-5 h-5 text-primary" />
-                </div>
-                <div className="space-y-3 flex-1">
-                  <div>
-                    <p className="font-medium text-foreground">Welcome back!</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Access your assessment history and diary to continue your recovery journey, or start a new assessment to track new pain areas.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link href="/assessment-history">
-                      <Button variant="default">
-                        <BookOpen className="w-4 h-4 mr-2" />
-                        View Assessment History
-                      </Button>
-                    </Link>
-                    <Button variant="outline" onClick={() => setStep(1)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      New Assessment
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 border-l-4 border-l-primary">
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <BookOpen className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Pain Diary & Journal</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Document your recovery journey with daily entries. Track pain levels, workouts, and progress updates with AI-powered feedback.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Track Progress</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Monitor your recovery over time. See trends in your pain levels and celebrate improvements.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <MessageSquare className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Get AI Guidance</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Ask questions about workouts, pain changes, or recovery concerns and get instant AI-powered insights.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {isSaved ? (
-              <Card className="p-5 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                <div className="flex items-start gap-3">
-                  <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-                  <div className="space-y-3 flex-1">
-                    <div>
-                      <p className="font-medium text-green-900 dark:text-green-100">Assessment Saved!</p>
-                      <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                        Your recovery companion is ready. Access your diary from Assessment History to start tracking your journey.
-                      </p>
-                    </div>
-                    <Link href="/assessment-history">
-                      <Button variant="default" className="w-full sm:w-auto">
-                        <BookOpen className="w-4 h-4 mr-2" />
-                        Go to Assessment History
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </Card>
-            ) : (
-              <Card className="p-5 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                  <div className="space-y-3 flex-1">
-                    <div>
-                      <p className="font-medium text-amber-900 dark:text-amber-100">Save Your Assessment First</p>
-                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                        To access your recovery companion and diary, please save your assessment to history.
-                      </p>
-                    </div>
-                    <Button
-                      variant="default"
-                      onClick={saveToHistory}
-                      disabled={!analysisResult}
-                      className="w-full sm:w-auto"
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      Save to History
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            <div className="flex justify-between gap-4">
-              <Button variant="secondary" onClick={() => setStep(4)} data-testid="button-back-step5">
-                <ChevronLeft className="w-4 h-4 mr-1" /> Back
-              </Button>
-              <Button variant="outline" onClick={resetAll} data-testid="button-new-assessment">
-                Start New Assessment
-              </Button>
             </div>
           </div>
         )}

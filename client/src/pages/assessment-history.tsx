@@ -293,6 +293,7 @@ export default function AssessmentHistory() {
           </Card>
         ) : (
           <>
+            {/* Progress Overview - Hidden for now
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -345,6 +346,7 @@ export default function AssessmentHistory() {
                 </div>
               </CardContent>
             </Card>
+            */}
 
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">

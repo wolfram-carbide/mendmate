@@ -11,7 +11,11 @@ import {
   CheckCircle2,
   Loader2,
   BookOpen,
-  Download
+  Download,
+  Info,
+  TrendingDown,
+  TrendingUp,
+  Minus
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Link, useLocation } from "wouter";

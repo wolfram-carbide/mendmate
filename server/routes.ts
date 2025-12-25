@@ -6,7 +6,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { z } from "zod";
 import { generatePdfBuffer } from "./pdfGenerator";
 import Anthropic from "@anthropic-ai/sdk";
-import { buildAnalysisPrompt, buildDiaryPrompt } from "./promptTemplates";
+import { buildAnalysisPrompt, buildDiaryPrompt, buildInsightsPrompt } from "./promptTemplates";
 import { checkRateLimit } from "./rateLimiter";
 
 export async function registerRoutes(
@@ -344,6 +344,69 @@ export async function registerRoutes(
     }
   });
 
+  // AI Insights endpoint - analyzes last 15 diary entries
+  app.get("/api/diary/insights/:assessmentId", isAuthenticated, async (req: any, res) => {
+    try {
+      const assessmentId = parseInt(req.params.assessmentId, 10);
+      if (isNaN(assessmentId)) {
+        return res.status(400).json({ error: "Invalid assessment ID" });
+      }
+
+      const userId = req.user.claims.sub;
+
+      // Verify assessment belongs to user
+      const assessment = await storage.getAssessment(assessmentId);
+      if (!assessment || assessment.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get last 15 diary entries for this assessment
+      const allEntries = await storage.getDiaryEntriesByAssessment(assessmentId, userId);
+      const last15Entries = allEntries.slice(0, 15);
+
+      if (last15Entries.length === 0) {
+        return res.status(400).json({
+          error: "No diary entries found",
+          message: "You need at least one diary entry to generate insights."
+        });
+      }
+
+      // Build prompt and call Claude
+      const prompt = buildInsightsPrompt(last15Entries, assessment);
+
+      const anthropic = new Anthropic({
+        apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      });
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const content = message.content[0];
+      if (content.type !== "text") {
+        throw new Error("Unexpected response type from AI");
+      }
+
+      // Parse JSON response
+      let responseText = content.text.trim();
+      responseText = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON object found in response");
+      }
+
+      const insights = JSON.parse(jsonMatch[0]);
+
+      res.json(insights);
+    } catch (error) {
+      console.error("Failed to generate AI insights:", error);
+      res.status(500).json({ error: "Failed to generate AI insights" });
+    }
+  });
+
   // Validation schema for AI analysis request
   const analyzeRequestSchema = z.object({
     selectedMuscles: z.array(z.string()).min(1, "At least one muscle must be selected"),
@@ -583,6 +646,84 @@ Keep it conversational and human. Don't use medical jargon or give specific medi
       console.error("Diary AI feedback error:", error);
       res.status(500).json({ 
         error: "Failed to generate feedback",
+        message: error.message 
+      });
+    }
+  });
+
+  // Diary Insights endpoint (no authentication - localStorage based)
+  app.post("/api/diary/insights", async (req, res) => {
+    try {
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+      const rateCheck = checkRateLimit(clientIp);
+      
+      if (!rateCheck.allowed) {
+        return res.status(429).json({
+          error: "Rate limit exceeded",
+          message: rateCheck.message,
+          retryAfter: rateCheck.retryAfter,
+        });
+      }
+
+      const { entries, assessment } = req.body;
+
+      if (!entries || !Array.isArray(entries) || entries.length === 0) {
+        return res.status(400).json({
+          error: "No diary entries provided",
+          message: "You need at least one diary entry to generate insights."
+        });
+      }
+
+      if (!assessment) {
+        return res.status(400).json({ error: "Missing assessment data" });
+      }
+
+      // Build prompt using the modular template
+      const prompt = buildInsightsPrompt(
+        entries.slice(0, 15).map((e: any) => ({
+          entryType: e.entryType,
+          painLevel: e.painLevel,
+          entryText: e.entryText,
+          aiResponse: e.aiResponse,
+          createdAt: new Date(e.createdAt),
+        })),
+        {
+          formData: assessment.formData || {},
+          selectedMuscles: assessment.selectedMuscles || [],
+          createdAt: new Date(assessment.createdAt || Date.now()),
+        }
+      );
+
+      const anthropic = new Anthropic({
+        apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      });
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const content = message.content[0];
+      if (content.type !== "text") {
+        throw new Error("Unexpected response type from AI");
+      }
+
+      // Parse JSON response
+      let responseText = content.text.trim();
+      responseText = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON object found in response");
+      }
+
+      const insights = JSON.parse(jsonMatch[0]);
+      res.json(insights);
+    } catch (error: any) {
+      console.error("Diary insights error:", error);
+      res.status(500).json({ 
+        error: "Failed to generate insights",
         message: error.message 
       });
     }

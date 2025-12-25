@@ -18,7 +18,8 @@ import {
   Loader2,
   BookOpen,
   Download,
-  Upload
+  Upload,
+  Plus
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Link, useLocation } from "wouter";
@@ -247,9 +248,9 @@ export default function AssessmentHistory() {
               <p className="text-xs text-muted-foreground hidden sm:block">Track your pain over time</p>
             </div>
           </div>
-          <Link href="/">
+          <Link href="/assessment">
             <Button variant="outline" size="sm" data-testid="button-new-assessment">
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">New Assessment</span>
             </Button>
           </Link>
@@ -265,7 +266,7 @@ export default function AssessmentHistory() {
                 <h2 className="text-xl font-semibold text-foreground">No assessments yet</h2>
                 <p className="text-muted-foreground mt-1">Complete your first pain assessment to see your history here.</p>
               </div>
-              <Link href="/">
+              <Link href="/assessment">
                 <Button data-testid="button-start-first">Start First Assessment</Button>
               </Link>
             </div>

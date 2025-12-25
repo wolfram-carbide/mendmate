@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { AnalysisLoader } from '@/components/AnalysisLoader';
 import { Logo } from '@/components/Logo';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -1363,34 +1363,18 @@ const STEPS = [
   { num: 1, label: 'Select Areas' },
   { num: 2, label: 'Mark Pain' },
   { num: 3, label: 'Details' },
-  { num: 4, label: 'Analysis' },
-  { num: 5, label: 'Recovery Companion' }
+  { num: 4, label: 'Analysis' }
 ];
 
 export default function BodyPainAssessment() {
-  // Check if user has completed assessments and should land on Recovery Companion
-  const getInitialStep = () => {
-    try {
-      const history = localStorage.getItem('assessmentHistory');
-      if (history) {
-        const assessments = JSON.parse(history);
-        // If user has at least one completed assessment, start on Recovery Companion
-        if (Array.isArray(assessments) && assessments.length > 0) {
-          return 5;
-        }
-      }
-    } catch {
-      console.error('Failed to check assessment history');
-    }
-    return 1;
-  };
-
-  const [step, setStep] = useState(getInitialStep());
+  const [, setLocation] = useLocation();
+  const [step, setStep] = useState(1);
   const [view, setView] = useState<'front' | 'back'>('front');
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
   const [painPoints, setPainPoints] = useState<PainPoint[]>([]);
   const [brushSize, setBrushSize] = useState(12);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [isSavingToServer, setIsSavingToServer] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     painLevel: null,
     painTypes: [],
@@ -1425,13 +1409,20 @@ export default function BodyPainAssessment() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('painAssessment', JSON.stringify({ 
-      selectedMuscles, 
-      painPoints, 
-      formData, 
-      analysis: analysisResult 
+    localStorage.setItem('painAssessment', JSON.stringify({
+      selectedMuscles,
+      painPoints,
+      formData,
+      analysis: analysisResult
     }));
   }, [selectedMuscles, painPoints, formData, analysisResult]);
+
+  // Auto-save and redirect when analysis completes
+  useEffect(() => {
+    if (analysisResult && step === 4) {
+      autoSaveAndRedirect();
+    }
+  }, [analysisResult]);
 
   const handleMuscleClick = (muscle: string) => {
     setSelectedMuscles(prev => 
@@ -1474,7 +1465,7 @@ export default function BodyPainAssessment() {
     try {
       const savedHistory = localStorage.getItem('assessmentHistory');
       const history = savedHistory ? JSON.parse(savedHistory) : [];
-      
+
       const newAssessment = {
         id: Date.now(),
         selectedMuscles,
@@ -1483,10 +1474,10 @@ export default function BodyPainAssessment() {
         analysis: analysisResult,
         createdAt: new Date().toISOString(),
       };
-      
+
       history.unshift(newAssessment);
       localStorage.setItem('assessmentHistory', JSON.stringify(history));
-      
+
       setIsSaved(true);
       toast({
         title: "Assessment saved",
@@ -1499,6 +1490,71 @@ export default function BodyPainAssessment() {
         description: "Failed to save assessment. Please try again.",
         variant: "destructive",
       });
+    }
+  };
+
+  // Auto-save assessment to server and redirect to Recovery Companion
+  const autoSaveAndRedirect = async () => {
+    if (!analysisResult || isSavingToServer) return;
+
+    setIsSavingToServer(true);
+    try {
+      // Save to localStorage first (for backwards compatibility)
+      const savedHistory = localStorage.getItem('assessmentHistory');
+      const history = savedHistory ? JSON.parse(savedHistory) : [];
+
+      const newAssessment = {
+        id: Date.now(),
+        selectedMuscles,
+        painPoints,
+        formData,
+        analysis: analysisResult,
+        createdAt: new Date().toISOString(),
+      };
+
+      history.unshift(newAssessment);
+      localStorage.setItem('assessmentHistory', JSON.stringify(history));
+
+      // Save to server
+      const response = await fetch('/api/assessments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          selectedMuscles,
+          painPoints,
+          formData,
+          analysis: analysisResult,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save assessment to server');
+      }
+
+      const savedAssessment = await response.json();
+
+      // Show success toast
+      toast({
+        title: "Assessment saved",
+        description: "Your assessment has been saved. Redirecting to Recovery Companion...",
+      });
+
+      // Clear the temporary assessment data
+      localStorage.removeItem('painAssessment');
+
+      // Redirect to the Recovery Companion (diary) for this assessment
+      setTimeout(() => {
+        setLocation(`/diary/${savedAssessment.id}`);
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to auto-save assessment:', error);
+      toast({
+        title: "Error saving assessment",
+        description: "Failed to save to server. You can still access your assessment locally.",
+        variant: "destructive",
+      });
+      setIsSavingToServer(false);
     }
   };
   
@@ -1914,9 +1970,6 @@ export default function BodyPainAssessment() {
                   )}
                   {isExportingPdf ? 'Generating...' : 'PDF'}
                 </Button>
-                <Button variant="default" onClick={() => setStep(5)} data-testid="button-continue-step4">
-                  Recovery Companion <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
               </div>
             </div>
           </div>
@@ -1942,7 +1995,7 @@ export default function BodyPainAssessment() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Link href="/assessment-history">
+                    <Link href="/history">
                       <Button variant="default">
                         <BookOpen className="w-4 h-4 mr-2" />
                         View Assessment History
@@ -1957,7 +2010,7 @@ export default function BodyPainAssessment() {
               </div>
             </Card>
 
-            <Card className="p-6 border-l-4 border-l-primary">
+            <Card className="p-6">
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -2008,7 +2061,7 @@ export default function BodyPainAssessment() {
                         Your recovery companion is ready. Access your diary from Assessment History to start tracking your journey.
                       </p>
                     </div>
-                    <Link href="/assessment-history">
+                    <Link href="/history">
                       <Button variant="default" className="w-full sm:w-auto">
                         <BookOpen className="w-4 h-4 mr-2" />
                         Go to Assessment History

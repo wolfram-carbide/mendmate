@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MessageSquare, Dumbbell, TrendingUp, ArrowLeft, Trash2, Plus, Sparkles, X } from "lucide-react";
+import { Loader2, MessageSquare, Dumbbell, TrendingUp, ArrowLeft, Trash2, Sparkles, X, Download, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type EntryType = "pain" | "workout" | "progression" | "general";
@@ -139,6 +139,87 @@ export default function DiaryPage() {
   const [showInsights, setShowInsights] = useState(false);
   const [insights, setInsights] = useState<InsightsResponse | null>(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDownloadEntries = () => {
+    if (entries.length === 0) {
+      toast({ title: "No entries to download", variant: "destructive" });
+      return;
+    }
+    const dataStr = JSON.stringify(entries, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `diary-entries-${assessmentId}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Entries downloaded successfully" });
+  };
+
+  const validateEntries = (data: unknown): data is DiaryEntry[] => {
+    if (!Array.isArray(data)) return false;
+    return data.every((item) => {
+      return (
+        typeof item === "object" &&
+        item !== null &&
+        typeof item.id === "string" &&
+        typeof item.assessmentId === "string" &&
+        typeof item.entryType === "string" &&
+        ["pain", "workout", "progression", "general"].includes(item.entryType) &&
+        (item.painLevel === null || typeof item.painLevel === "number") &&
+        typeof item.entryText === "string" &&
+        (item.aiResponse === null || typeof item.aiResponse === "string") &&
+        typeof item.createdAt === "string"
+      );
+    });
+  };
+
+  const handleUploadEntries = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsed = JSON.parse(content);
+
+        if (!validateEntries(parsed)) {
+          toast({
+            title: "Invalid file format",
+            description: "The uploaded file doesn't match the expected diary entry format.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        const saved = localStorage.getItem(DIARY_STORAGE_KEY);
+        const existingEntries: DiaryEntry[] = saved ? JSON.parse(saved) : [];
+        const existingIds = new Set(existingEntries.map(e => e.id));
+        const newEntries = parsed.filter(e => !existingIds.has(e.id));
+
+        if (newEntries.length === 0) {
+          toast({ title: "No new entries to import", description: "All entries already exist." });
+          return;
+        }
+
+        localStorage.setItem(DIARY_STORAGE_KEY, JSON.stringify([...existingEntries, ...newEntries]));
+        refreshEntries();
+        toast({ title: `Imported ${newEntries.length} entries successfully` });
+      } catch {
+        toast({
+          title: "Failed to parse file",
+          description: "Please upload a valid JSON file.",
+          variant: "destructive"
+        });
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = "";
+  };
 
   useEffect(() => {
     if (!assessmentId) {
@@ -319,14 +400,33 @@ export default function DiaryPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to History
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => setLocation("/assessment")}
-            data-testid="button-new-assessment"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            New Assessment
-          </Button>
+          <div className="flex gap-2">
+            <input
+              type="file"
+              accept=".json"
+              ref={fileInputRef}
+              onChange={handleUploadEntries}
+              className="hidden"
+              data-testid="input-upload-entries"
+            />
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              data-testid="button-upload-entries"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Entries
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleDownloadEntries}
+              disabled={entries.length === 0}
+              data-testid="button-download-entries"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download All
+            </Button>
+          </div>
         </div>
         <h1 className="text-3xl font-bold text-foreground">Recovery Diary: {primaryBodyPart}</h1>
         <p className="text-muted-foreground mt-2">

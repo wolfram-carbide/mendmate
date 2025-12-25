@@ -3,36 +3,31 @@ import { format } from "date-fns";
 import {
   Clock,
   Calendar,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Trash2,
   FileText,
   Eye,
   ArrowLeft,
-  Activity,
-  MapPin,
   AlertCircle,
   CheckCircle2,
-  Info,
   Loader2,
-  BookOpen
+  BookOpen,
+  Download
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle, 
-  AlertDialogTrigger 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import type { FormData, PainPoint } from "@shared/schema";
@@ -53,6 +48,13 @@ interface LocalAssessment {
     nextSteps: string[];
     experts: Array<{ name: string; focus: string; why: string }>;
   } | null;
+  createdAt: string;
+}
+
+interface DiaryEntry {
+  id: number;
+  painLevel: number | null;
+  entryText: string;
   createdAt: string;
 }
 
@@ -153,6 +155,7 @@ export default function AssessmentHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState<number | null>(null);
+  const [diaryEntries, setDiaryEntries] = useState<Record<number, DiaryEntry[]>>({});
 
   useEffect(() => {
     const savedHistory = localStorage.getItem('assessmentHistory');
@@ -160,12 +163,42 @@ export default function AssessmentHistory() {
       try {
         const parsed = JSON.parse(savedHistory);
         setAssessments(parsed);
+        // Fetch diary entries for each assessment
+        parsed.forEach((assessment: LocalAssessment) => {
+          fetchDiaryEntries(assessment.id);
+        });
       } catch (error) {
         console.error('Failed to parse assessment history:', error);
       }
     }
     setIsLoading(false);
   }, []);
+
+  const fetchDiaryEntries = async (assessmentId: number) => {
+    try {
+      const response = await fetch(`/api/diary/entries?assessmentId=${assessmentId}`);
+      if (response.ok) {
+        const entries = await response.json();
+        setDiaryEntries(prev => ({ ...prev, [assessmentId]: entries }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch diary entries:', error);
+    }
+  };
+
+  const getAveragePain = (assessment: LocalAssessment): number => {
+    const entries = diaryEntries[assessment.id] || [];
+    const painLevels = entries
+      .map(e => e.painLevel)
+      .filter((level): level is number => level !== null);
+
+    if (painLevels.length === 0) {
+      return assessment.formData?.painLevel ?? 0;
+    }
+
+    const avg = painLevels.reduce((sum, level) => sum + level, 0) / painLevels.length;
+    return Math.round(avg * 10) / 10; // Round to 1 decimal
+  };
 
   const deleteAssessment = (id: number) => {
     const updated = assessments.filter(a => a.id !== id);
@@ -206,20 +239,6 @@ export default function AssessmentHistory() {
     } finally {
       setIsExportingPdf(null);
     }
-  };
-
-  const downloadJSON = (assessment: LocalAssessment) => {
-    const blob = new Blob([JSON.stringify({
-      selectedMuscles: assessment.selectedMuscles,
-      painPoints: assessment.painPoints,
-      formData: assessment.formData,
-      analysis: assessment.analysis,
-    }, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `pain-assessment-${format(new Date(assessment.createdAt), 'yyyy-MM-dd')}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
   };
 
   // Removed diary export/import - diary entries are now managed per assessment via the server API
@@ -326,74 +345,71 @@ export default function AssessmentHistory() {
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                Timeline
+                Recovery Journey
               </h2>
               
               {assessments.map((assessment, index) => {
-                const prevAssessment = index < assessments.length - 1 ? assessments[index + 1] : null;
-                const painChange = prevAssessment 
-                  ? assessment.formData.painLevel - prevAssessment.formData.painLevel 
-                  : 0;
+                const avgPain = getAveragePain(assessment);
+                const muscleDisplay = assessment.selectedMuscles
+                  .slice(0, 3)
+                  .map(m => getMuscleDisplayName(m))
+                  .join(', ');
 
                 return (
-                  <Card 
-                    key={assessment.id} 
+                  <Card
+                    key={assessment.id}
                     className={`overflow-hidden ${selectedId === assessment.id ? 'ring-2 ring-primary' : ''}`}
                     data-testid={`assessment-card-${assessment.id}`}
                   >
                     <div className="p-4">
-                      <div className="flex items-start justify-between gap-4 flex-wrap">
-                        <div className="flex items-start gap-3">
-                          <div 
-                            className={`w-12 h-12 rounded-lg ${getPainLevelColor(assessment.formData.painLevel)} flex items-center justify-center text-white font-bold text-lg`}
+                      <div className="flex items-center justify-between gap-4">
+                        {/* Left side - Pain badge and location */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div
+                            className={`w-12 h-12 rounded-lg ${getPainLevelColor(avgPain)} flex items-center justify-center text-white font-bold text-lg flex-shrink-0`}
                             data-testid={`pain-level-indicator-${assessment.id}`}
                           >
-                            {assessment.formData.painLevel}
+                            {avgPain}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-foreground">
-                                {getPainLevelLabel(assessment.formData.painLevel)} Pain
-                              </span>
-                              {getUrgencyBadge(assessment.analysis?.urgency)}
-                              {painChange !== 0 && (
-                                <Badge variant={painChange < 0 ? "outline" : "destructive"} className="gap-1">
-                                  {painChange < 0 ? <TrendingDown className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
-                                  {Math.abs(painChange)} pts
-                                </Badge>
-                              )}
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-foreground truncate">
+                              {muscleDisplay}
                             </div>
-                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              {format(new Date(assessment.createdAt), 'MMM d, yyyy h:mm a')}
+                            <div className="text-xs text-muted-foreground">
+                              {format(new Date(assessment.createdAt), 'MMM d')}
                             </div>
                           </div>
                         </div>
-                        
-                        <div className="flex items-center gap-2 flex-wrap">
+
+                        {/* Right side - Actions */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Link href={`/diary/${assessment.id}`}>
+                            <Button
+                              size="sm"
+                              className="gap-2"
+                              data-testid={`button-diary-${assessment.id}`}
+                            >
+                              <BookOpen className="w-4 h-4" />
+                              Recovery Diary
+                            </Button>
+                          </Link>
+
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setSelectedId(selectedId === assessment.id ? null : assessment.id)}
+                            title="View assessment details"
                             data-testid={`button-view-${assessment.id}`}
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Link href={`/diary/${assessment.id}`}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="View Diary"
-                              data-testid={`button-diary-${assessment.id}`}
-                            >
-                              <BookOpen className="w-4 h-4" />
-                            </Button>
-                          </Link>
+
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => downloadPdf(assessment)}
                             disabled={isExportingPdf === assessment.id}
+                            title="Export as PDF"
                             data-testid={`button-pdf-${assessment.id}`}
                           >
                             {isExportingPdf === assessment.id ? (
@@ -402,17 +418,15 @@ export default function AssessmentHistory() {
                               <FileText className="w-4 h-4" />
                             )}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => downloadJSON(assessment)}
-                            data-testid={`button-json-${assessment.id}`}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
+
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" data-testid={`button-delete-${assessment.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Delete assessment"
+                                data-testid={`button-delete-${assessment.id}`}
+                              >
                                 <Trash2 className="w-4 h-4 text-destructive" />
                               </Button>
                             </AlertDialogTrigger>
@@ -432,25 +446,6 @@ export default function AssessmentHistory() {
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {assessment.selectedMuscles.slice(0, 5).map(muscle => (
-                          <Badge key={muscle} variant="outline" className="text-xs gap-1">
-                            <MapPin className="w-2 h-2" />
-                            {getMuscleDisplayName(muscle)}
-                          </Badge>
-                        ))}
-                        {assessment.selectedMuscles.length > 5 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{assessment.selectedMuscles.length - 5} more
-                          </Badge>
-                        )}
-                        {assessment.formData.painTypes && assessment.formData.painTypes.length > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            Pain type: {assessment.formData.painTypes.slice(0, 3).join(', ')}
-                          </Badge>
-                        )}
                       </div>
                     </div>
 

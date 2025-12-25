@@ -33,6 +33,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import type { FormData, PainPoint } from "@shared/schema";
 
@@ -401,42 +406,54 @@ export default function AssessmentHistory() {
                             </Button>
                           </Link>
 
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedId(selectedId === assessment.id ? null : assessment.id)}
-                            title="View assessment details"
-                            data-testid={`button-view-${assessment.id}`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => downloadPdf(assessment)}
-                            disabled={isExportingPdf === assessment.id}
-                            title="Export as PDF"
-                            data-testid={`button-pdf-${assessment.id}`}
-                          >
-                            {isExportingPdf === assessment.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <FileText className="w-4 h-4" />
-                            )}
-                          </Button>
-
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                title="Delete assessment"
-                                data-testid={`button-delete-${assessment.id}`}
+                                onClick={() => setSelectedId(selectedId === assessment.id ? null : assessment.id)}
+                                data-testid={`button-view-${assessment.id}`}
                               >
-                                <Trash2 className="w-4 h-4 text-destructive" />
+                                <Eye className="w-4 h-4" />
                               </Button>
-                            </AlertDialogTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>View Details</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => downloadPdf(assessment)}
+                                disabled={isExportingPdf === assessment.id}
+                                data-testid={`button-pdf-${assessment.id}`}
+                              >
+                                {isExportingPdf === assessment.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <FileText className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Export as PDF</TooltipContent>
+                          </Tooltip>
+
+                          <AlertDialog>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    data-testid={`button-delete-${assessment.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete</TooltipContent>
+                            </Tooltip>
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Assessment</AlertDialogTitle>

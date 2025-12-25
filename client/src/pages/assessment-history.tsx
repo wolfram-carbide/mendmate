@@ -372,10 +372,11 @@ export default function AssessmentHistory() {
                         {/* Left side - Pain badge and location */}
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div
-                            className={`w-12 h-12 rounded-lg ${getPainLevelColor(avgPain)} flex items-center justify-center text-white font-bold text-lg flex-shrink-0`}
+                            className={`w-12 h-12 rounded-lg ${getPainLevelColor(avgPain)} flex flex-col items-center justify-center text-white flex-shrink-0`}
                             data-testid={`pain-level-indicator-${assessment.id}`}
                           >
-                            {avgPain}
+                            <span className="font-bold text-lg leading-none">{avgPain}</span>
+                            <span className="text-[10px] opacity-80">/10</span>
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="font-semibold text-foreground truncate">

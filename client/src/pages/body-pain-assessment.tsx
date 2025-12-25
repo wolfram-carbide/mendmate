@@ -1630,16 +1630,7 @@ export default function BodyPainAssessment() {
               <p className="text-xs text-muted-foreground hidden sm:block">Your recovery companion</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => fileInputRef.current?.click()} 
-              title="Import assessment"
-              data-testid="button-import"
-            >
-              <Upload className="w-4 h-4" />
-            </Button>
+          <div className="flex items-center gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -1647,15 +1638,6 @@ export default function BodyPainAssessment() {
               onChange={importJSON}
               className="hidden"
             />
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={exportJSON} 
-              title="Export assessment"
-              data-testid="button-export"
-            >
-              <Download className="w-4 h-4" />
-            </Button>
             <Button 
               variant="ghost" 
               size="icon" 
@@ -1667,12 +1649,11 @@ export default function BodyPainAssessment() {
             </Button>
             <Link href="/history">
               <Button 
-                variant="ghost" 
-                size="icon" 
-                title="Assessment History"
-                data-testid="button-history"
+                variant="default"
+                size="sm"
+                data-testid="button-dashboard"
               >
-                <History className="w-4 h-4" />
+                My Dashboard
               </Button>
             </Link>
           </div>

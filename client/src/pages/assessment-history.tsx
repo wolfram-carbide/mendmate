@@ -417,16 +417,17 @@ export default function AssessmentHistory() {
 
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setSelectedId(selectedId === assessment.id ? null : assessment.id)}
-                                data-testid={`button-view-${assessment.id}`}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
+                              <Link href={`/view/${assessment.id}`}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  data-testid={`button-view-${assessment.id}`}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </Link>
                             </TooltipTrigger>
-                            <TooltipContent>View Details</TooltipContent>
+                            <TooltipContent>View Full Assessment</TooltipContent>
                           </Tooltip>
 
                           <Tooltip>
@@ -445,7 +446,7 @@ export default function AssessmentHistory() {
                                 )}
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Export as PDF</TooltipContent>
+                            <TooltipContent>Download Report</TooltipContent>
                           </Tooltip>
 
                           <AlertDialog>

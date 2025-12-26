@@ -64,9 +64,9 @@ export default function Landing() {
               
               <Card className="p-6" data-testid="card-feature-reports">
                 <FileText className="h-10 w-10 text-primary mb-4" />
-                <h3 className="font-semibold mb-2">PDF Reports</h3>
+                <h3 className="font-semibold mb-2">Shareable Reports</h3>
                 <p className="text-sm text-muted-foreground">
-                  Generate professional reports to share with doctors and healthcare providers.
+                  Download professional reports to share with your doctor or physiotherapist.
                 </p>
               </Card>
               

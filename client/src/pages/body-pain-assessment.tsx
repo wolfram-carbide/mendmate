@@ -1651,9 +1651,9 @@ export default function BodyPainAssessment() {
               <Button 
                 variant="default"
                 size="sm"
-                data-testid="button-dashboard"
+                data-testid="button-recovery-journey"
               >
-                My Dashboard
+                Recovery Journey
               </Button>
             </Link>
           </div>
@@ -1913,11 +1913,76 @@ export default function BodyPainAssessment() {
               />
             </Card>
 
+            {analysisResult && !isSaved && (
+              <Card className="p-4 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+                <div className="flex items-start gap-3">
+                  <Save className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100">Keep your assessment safe</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      Your data is stored on this device only. If you clear your browser data, your assessments will be lost. 
+                      We recommend saving a backup to keep your records safe.
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Button
+                        size="sm"
+                        onClick={saveToHistory}
+                        data-testid="button-save-to-journey"
+                      >
+                        <Save className="w-4 h-4 mr-1" />
+                        Start Recovery Journey
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={exportJSON}
+                        data-testid="button-save-backup"
+                      >
+                        <Download className="w-4 h-4 mr-1" />
+                        Save Backup
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {isSaved && (
+              <Card className="p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                <div className="flex items-start gap-3">
+                  <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-900 dark:text-green-100">Assessment saved to your Recovery Journey</p>
+                    <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                      You can now track your progress, add diary entries, and get ongoing guidance.
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Link href="/history">
+                        <Button size="sm" data-testid="button-go-to-journey">
+                          <BookOpen className="w-4 h-4 mr-1" />
+                          Go to Recovery Journey
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={exportJSON}
+                        data-testid="button-save-backup-after"
+                      >
+                        <Download className="w-4 h-4 mr-1" />
+                        Save Backup
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-3">
               <Share2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-foreground">Share with your healthcare provider</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Download the PDF report to share with your physiotherapist or doctor for personalized guidance.</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Download a report to share with your physiotherapist or doctor for personalized guidance.</p>
               </div>
             </div>
 
@@ -1925,33 +1990,14 @@ export default function BodyPainAssessment() {
               <Button variant="secondary" onClick={() => setStep(3)} data-testid="button-back-step4">
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
               </Button>
-              <div className="flex flex-wrap gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={saveToHistory}
-                  disabled={isSaved || !analysisResult}
-                  title={!analysisResult ? 'Wait for analysis to complete' : undefined}
-                  data-testid="button-save-assessment"
-                >
-                  {isSaved ? (
-                    <Check className="w-4 h-4 mr-1" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-1" />
-                  )}
-                  {isSaved ? 'Saved' : !analysisResult ? 'Analyzing...' : 'Save to History'}
-                </Button>
-                <Button variant="outline" onClick={exportJSON} data-testid="button-download-json">
-                  <Download className="w-4 h-4 mr-1" /> JSON
-                </Button>
-                <Button variant="outline" onClick={exportPDF} disabled={isExportingPdf} data-testid="button-download-pdf">
-                  {isExportingPdf ? (
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                  ) : (
-                    <FileText className="w-4 h-4 mr-1" />
-                  )}
-                  {isExportingPdf ? 'Generating...' : 'PDF'}
-                </Button>
-              </div>
+              <Button variant="outline" onClick={exportPDF} disabled={isExportingPdf} data-testid="button-download-report">
+                {isExportingPdf ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4 mr-1" />
+                )}
+                {isExportingPdf ? 'Generating...' : 'Download Report'}
+              </Button>
             </div>
           </div>
         )}

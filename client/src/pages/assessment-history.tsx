@@ -354,10 +354,19 @@ export default function AssessmentHistory() {
             */}
 
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Recovery Journey
-              </h2>
+              <div className="space-y-2">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Recovery Journey
+                </h2>
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 flex items-start gap-2">
+                  <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    <strong>Your data is stored on this device only.</strong> Clearing your browser data will erase your assessments. 
+                    Use the "Save Backup" option on each assessment to keep your records safe.
+                  </p>
+                </div>
+              </div>
               
               {assessments.map((assessment, index) => {
                 const avgPain = getAveragePain(assessment);

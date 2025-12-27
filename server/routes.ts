@@ -651,6 +651,77 @@ Keep it conversational and human. Don't use medical jargon or give specific medi
     }
   });
 
+  // Diary Follow-up endpoint (no authentication - localStorage based)
+  app.post("/api/diary/follow-up", async (req, res) => {
+    try {
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+      const rateCheck = checkRateLimit(clientIp);
+      
+      if (!rateCheck.allowed) {
+        return res.status(429).json({
+          error: "Rate limit exceeded",
+          message: rateCheck.message,
+          retryAfter: rateCheck.retryAfter,
+        });
+      }
+
+      const { originalEntry, originalResponse, followUpQuestion, assessment } = req.body;
+
+      if (!followUpQuestion || !originalEntry || !assessment) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const anthropic = new Anthropic({
+        apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      });
+
+      const prompt = `You are a compassionate, expert recovery coach continuing a conversation with someone about their ${assessment.selectedMuscles?.[0] || 'pain'}.
+
+CONVERSATION CONTEXT:
+Their original diary entry: "${originalEntry.entryText}"
+${originalEntry.painLevel ? `Pain level: ${originalEntry.painLevel}/10` : ''}
+
+Your previous response: "${originalResponse}"
+
+Their follow-up question: "${followUpQuestion}"
+
+THEIR ASSESSMENT CONTEXT:
+- Pain areas: ${assessment.selectedMuscles?.join(', ') || 'Not specified'}
+- Original pain level: ${assessment.painLevel || 'N/A'}/10
+- Goals: ${assessment.goals || 'Not specified'}
+
+INSTRUCTIONS:
+- Directly answer their follow-up question with specificity
+- If they're asking about anatomy or what might be affected, offer educated guesses with appropriate hedging ("this could involve...", "one possibility is...")
+- Reference their specific situation and body parts
+- Keep response focused and helpful (150-250 words)
+- Maintain warmth while being substantive
+- Always encourage them to verify with their healthcare provider if the concern persists
+
+Respond naturally and helpfully.`;
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 500,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const content = message.content[0];
+      if (content.type !== "text") {
+        throw new Error("Unexpected response type");
+      }
+
+      res.json({ feedback: content.text.trim() });
+    } catch (error: any) {
+      console.error("Diary follow-up error:", error);
+      res.status(500).json({ 
+        error: "Failed to generate follow-up response",
+        message: error.message 
+      });
+    }
+  });
+
   // Diary Insights endpoint (no authentication - localStorage based)
   app.post("/api/diary/insights", async (req, res) => {
     try {

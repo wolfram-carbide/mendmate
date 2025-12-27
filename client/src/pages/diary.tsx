@@ -5,20 +5,59 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MessageSquare, Dumbbell, TrendingUp, ArrowLeft, Trash2, Sparkles, X, Download, Upload } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Loader2, MessageSquare, Dumbbell, TrendingUp, ArrowLeft, Trash2, Sparkles, X, Download, Upload, Frown, Meh, Smile, ThumbsUp, BookOpen, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type EntryType = "pain" | "workout" | "progression" | "general";
+type SentimentLevel = 1 | 2 | 3 | 4 | 5 | null;
+
+interface FollowUp {
+  question: string;
+  response: string;
+  createdAt: string;
+}
 
 interface DiaryEntry {
   id: string;
   assessmentId: string;
   entryType: EntryType;
   painLevel: number | null;
+  sentiment: SentimentLevel;
   entryText: string;
   aiResponse: string | null;
+  followUp: FollowUp | null;
   createdAt: string;
 }
+
+const sentimentConfig = [
+  { value: 1, label: "Frustrated", icon: Frown, color: "text-red-500 dark:text-red-400" },
+  { value: 2, label: "Struggling", icon: Frown, color: "text-orange-500 dark:text-orange-400" },
+  { value: 3, label: "Neutral", icon: Meh, color: "text-yellow-500 dark:text-yellow-400" },
+  { value: 4, label: "Hopeful", icon: Smile, color: "text-green-500 dark:text-green-400" },
+  { value: 5, label: "Confident", icon: ThumbsUp, color: "text-emerald-500 dark:text-emerald-400" },
+] as const;
+
+const expertSources = [
+  {
+    name: "Prof. Lorimer Moseley",
+    expertise: "Pain Science & Neuroscience",
+    description: "World-leading pain researcher. His work shows that understanding pain reduces it.",
+    link: "https://www.tamethebeast.org/",
+  },
+  {
+    name: "Dr. Stuart McGill",
+    expertise: "Spine Biomechanics",
+    description: "Professor emeritus, leading expert on spine health and injury prevention.",
+    link: "https://www.backfitpro.com/",
+  },
+  {
+    name: "Kelly Starrett",
+    expertise: "Movement & Mobility",
+    description: "Physical therapist and author of 'Becoming a Supple Leopard'.",
+    link: "https://thereadystate.com/",
+  },
+];
 
 interface StoredAssessment {
   id: string | number;
@@ -133,12 +172,15 @@ export default function DiaryPage() {
 
   const [selectedType, setSelectedType] = useState<EntryType>("pain");
   const [painLevel, setPainLevel] = useState<number | null>(null);
+  const [sentiment, setSentiment] = useState<SentimentLevel>(null);
   const [entryText, setEntryText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGettingAI, setIsGettingAI] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [insights, setInsights] = useState<InsightsResponse | null>(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+  const [followUpText, setFollowUpText] = useState<Record<string, string>>({});
+  const [isGettingFollowUp, setIsGettingFollowUp] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDownloadEntries = () => {
@@ -287,8 +329,10 @@ export default function DiaryPage() {
         assessmentId,
         entryType: selectedType,
         painLevel,
+        sentiment,
         entryText: entryText.trim(),
         aiResponse,
+        followUp: null,
         createdAt: new Date().toISOString(),
       };
 
@@ -296,6 +340,7 @@ export default function DiaryPage() {
       refreshEntries();
       setEntryText("");
       setPainLevel(null);
+      setSentiment(null);
       toast({ title: aiResponse ? "Entry saved with AI feedback!" : "Entry saved successfully" });
     } finally {
       setIsSubmitting(false);
@@ -306,6 +351,12 @@ export default function DiaryPage() {
   const handleDelete = (entryId: string) => {
     if (confirm("Are you sure you want to delete this entry?")) {
       deleteDiaryEntry(entryId);
+      // Clear any follow-up text for this entry
+      setFollowUpText(prev => {
+        const updated = { ...prev };
+        delete updated[entryId];
+        return updated;
+      });
       refreshEntries();
       toast({ title: "Entry deleted" });
     }
@@ -345,6 +396,61 @@ export default function DiaryPage() {
       });
     } finally {
       setIsLoadingInsights(false);
+    }
+  };
+
+  const handleFollowUp = async (entryId: string, entry: DiaryEntry) => {
+    const question = followUpText[entryId]?.trim();
+    if (!question || !assessment) return;
+
+    setIsGettingFollowUp(entryId);
+    try {
+      const response = await fetch('/api/diary/follow-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originalEntry: {
+            entryType: entry.entryType,
+            entryText: entry.entryText,
+            painLevel: entry.painLevel,
+          },
+          originalResponse: entry.aiResponse,
+          followUpQuestion: question,
+          assessment: {
+            selectedMuscles: assessment.selectedMuscles,
+            painLevel: assessment.formData?.painLevel,
+            goals: assessment.formData?.goals,
+            analysis: assessment.analysis,
+          }
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const followUp: FollowUp = {
+          question,
+          response: data.feedback,
+          createdAt: new Date().toISOString(),
+        };
+        
+        // Update entry in localStorage
+        const saved = localStorage.getItem(DIARY_STORAGE_KEY);
+        if (saved) {
+          const all: DiaryEntry[] = JSON.parse(saved);
+          const updated = all.map(e => e.id === entryId ? { ...e, followUp } : e);
+          localStorage.setItem(DIARY_STORAGE_KEY, JSON.stringify(updated));
+          refreshEntries();
+        }
+        
+        setFollowUpText(prev => ({ ...prev, [entryId]: '' }));
+        toast({ title: "Follow-up answered!" });
+      } else {
+        throw new Error("Failed to get follow-up response");
+      }
+    } catch (error) {
+      toast({ title: "Couldn't get follow-up response", variant: "destructive" });
+    } finally {
+      setIsGettingFollowUp(null);
     }
   };
 
@@ -539,6 +645,31 @@ export default function DiaryPage() {
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground">
+              How are you feeling about your recovery today? (Optional)
+            </label>
+            <div className="flex gap-1 sm:gap-2 flex-wrap">
+              {sentimentConfig.map((item) => {
+                const SentIcon = item.icon;
+                const isSelected = sentiment === item.value;
+                return (
+                  <Button
+                    key={item.value}
+                    variant={isSelected ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSentiment(isSelected ? null : item.value as SentimentLevel)}
+                    className={`flex-col h-auto py-2 px-3 ${isSelected ? '' : item.color}`}
+                    data-testid={`button-sentiment-${item.value}`}
+                  >
+                    <SentIcon className={`h-5 w-5 ${isSelected ? '' : item.color}`} />
+                    <span className="text-xs mt-1">{item.label}</span>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
               Pain Level (Optional): {painLevel !== null ? `${painLevel}/10` : "Not set"}
             </label>
             <div className="flex items-center gap-4">
@@ -622,6 +753,9 @@ export default function DiaryPage() {
             const entryConfig = entryTypeConfig[entry.entryType];
             const EntryIcon = entryConfig.icon;
             const date = new Date(entry.createdAt);
+            const entrySentiment = entry.sentiment ? sentimentConfig.find(s => s.value === entry.sentiment) : null;
+            const hasFollowUp = !!entry.followUp;
+            const canAskFollowUp = entry.aiResponse && !hasFollowUp;
 
             return (
               <Card key={entry.id} className="border-l-4 border-l-primary" data-testid={`card-entry-${entry.id}`}>
@@ -634,6 +768,12 @@ export default function DiaryPage() {
                       </Badge>
                       {entry.painLevel && (
                         <Badge variant="outline">Pain: {entry.painLevel}/10</Badge>
+                      )}
+                      {entrySentiment && (
+                        <Badge variant="outline" className={entrySentiment.color}>
+                          {(() => { const SIcon = entrySentiment.icon; return <SIcon className="mr-1 h-3 w-3" />; })()}
+                          {entrySentiment.label}
+                        </Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -656,12 +796,92 @@ export default function DiaryPage() {
                     {entry.entryText}
                   </div>
                   {entry.aiResponse && (
-                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-3">
                       <div className="flex items-center gap-2 mb-2">
                         <Sparkles className="h-4 w-4 text-primary" />
                         <p className="text-sm font-medium text-primary">AI Feedback</p>
                       </div>
                       <p className="text-muted-foreground whitespace-pre-wrap">{entry.aiResponse}</p>
+                      
+                      {/* Follow-up display or input */}
+                      {hasFollowUp && entry.followUp && (
+                        <div className="border-t border-primary/20 pt-3 mt-3 space-y-2">
+                          <p className="text-sm font-medium text-foreground">Your follow-up: {entry.followUp.question}</p>
+                          <p className="text-muted-foreground whitespace-pre-wrap">{entry.followUp.response}</p>
+                        </div>
+                      )}
+                      
+                      {canAskFollowUp && (
+                        <div className="border-t border-primary/20 pt-3 mt-3 space-y-2">
+                          <p className="text-sm text-muted-foreground">Have a follow-up question? (1 per entry)</p>
+                          <div className="flex gap-2">
+                            <Textarea
+                              placeholder="Ask a clarifying question..."
+                              value={followUpText[entry.id] || ''}
+                              onChange={(e) => setFollowUpText(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                              className="min-h-[60px] flex-1"
+                              data-testid={`input-followup-${entry.id}`}
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => handleFollowUp(entry.id, entry)}
+                            disabled={!followUpText[entry.id]?.trim() || isGettingFollowUp === entry.id}
+                            data-testid={`button-followup-${entry.id}`}
+                          >
+                            {isGettingFollowUp === entry.id ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Getting response...
+                              </>
+                            ) : (
+                              <>
+                                <MessageSquare className="mr-2 h-4 w-4" />
+                                Ask Follow-up
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {hasFollowUp && (
+                        <p className="text-xs text-muted-foreground italic mt-2">
+                          You've used your follow-up for this entry. Start a new entry to ask more questions.
+                        </p>
+                      )}
+                      
+                      {/* Expert Sources Accordion */}
+                      <Accordion type="single" collapsible className="mt-3">
+                        <AccordionItem value="sources" className="border-0">
+                          <AccordionTrigger className="text-xs text-muted-foreground py-2 hover:no-underline">
+                            <div className="flex items-center gap-1">
+                              <BookOpen className="h-3 w-3" />
+                              Sources & Expertise
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="text-xs text-muted-foreground space-y-2 pt-2">
+                              <p>This assistant is trained on evidence-based approaches from:</p>
+                              <ul className="space-y-2">
+                                {expertSources.map((source) => (
+                                  <li key={source.name} className="flex flex-col">
+                                    <span className="font-medium text-foreground">{source.name}</span>
+                                    <span className="text-muted-foreground">{source.expertise} - {source.description}</span>
+                                    <a
+                                      href={source.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-primary hover:underline inline-flex items-center gap-1 mt-0.5"
+                                    >
+                                      Learn more <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
                     </div>
                   )}
                 </CardContent>

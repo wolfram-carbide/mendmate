@@ -1,26 +1,26 @@
 /**
  * Prompt Templates for AI Analysis
- * 
+ *
  * This file contains the Claude prompt templates used for pain analysis.
  * All prompts are documented and can be easily modified.
- * 
+ *
  * MODIFICATION GUIDE:
  * - SYSTEM_CONTEXT: Sets Claude's persona and core approach
  * - EMPATHY_GUIDELINES: How to write warm, human summaries
  * - RESPONSE_SCHEMA: The JSON structure Claude must return
  * - buildAnalysisPrompt(): Main function that constructs the full prompt
- * 
+ *
  * Last updated: December 2024
  */
 
-import { 
-  getExpertsForAreas, 
-  getPrinciplesForAreas, 
+import {
+  getExpertsForAreas,
+  getPrinciplesForAreas,
   PAIN_SCIENCE_PRINCIPLES,
   GENERAL_RECOVERY_PRINCIPLES,
   MOVEMENT_EXPERTS,
-  type Expert 
-} from './expertKnowledge';
+  type Expert,
+} from "./expertKnowledge";
 
 /**
  * System context that establishes Claude's persona
@@ -151,24 +151,24 @@ interface PromptFormData {
 function buildExpertContext(muscleLabels: string[]): string {
   const experts = getExpertsForAreas(muscleLabels);
   const principles = getPrinciplesForAreas(muscleLabels);
-  
+
   if (experts.length === 0) {
-    return '';
+    return "";
   }
-  
-  let context = '\nRELEVANT EXPERT KNOWLEDGE:\n';
-  
-  experts.forEach(expert => {
+
+  let context = "\nRELEVANT EXPERT KNOWLEDGE:\n";
+
+  experts.forEach((expert) => {
     context += `- ${expert.name} (${expert.credentials}, ${expert.institution}): ${expert.specialty}. Key insight: ${expert.whyRecommended}\n`;
   });
-  
+
   if (principles.length > 0) {
-    context += '\nEVIDENCE-BASED PRINCIPLES FOR THIS AREA:\n';
-    principles.slice(0, 4).forEach(p => {
+    context += "\nEVIDENCE-BASED PRINCIPLES FOR THIS AREA:\n";
+    principles.slice(0, 4).forEach((p) => {
       context += `- ${p}\n`;
     });
   }
-  
+
   return context;
 }
 
@@ -177,24 +177,24 @@ function buildExpertContext(muscleLabels: string[]): string {
  */
 function buildResourcesContext(muscleLabels: string[]): string {
   const experts = getExpertsForAreas(muscleLabels);
-  
-  let context = '\nRECOMMENDED RESOURCES TO SUGGEST:\n';
-  
-  experts.forEach(expert => {
+
+  let context = "\nRECOMMENDED RESOURCES TO SUGGEST:\n";
+
+  experts.forEach((expert) => {
     if (expert.resources && expert.resources.length > 0) {
-      context += `- ${expert.name}: ${expert.resources.join(', ')}\n`;
+      context += `- ${expert.name}: ${expert.resources.join(", ")}\n`;
     }
   });
-  
-  context += `- For pain understanding: ${PAIN_SCIENCE_PRINCIPLES.resources.join(', ')}\n`;
-  context += `- For mobility: ${MOVEMENT_EXPERTS.kellyStarrett.resources?.join(', ')}\n`;
-  
+
+  context += `- For pain understanding: ${PAIN_SCIENCE_PRINCIPLES.resources.join(", ")}\n`;
+  context += `- For mobility: ${MOVEMENT_EXPERTS.kellyStarrett.resources?.join(", ")}\n`;
+
   return context;
 }
 
 /**
  * Main function to build the complete analysis prompt
- * 
+ *
  * @param muscleLabels - Array of affected muscle/area names
  * @param painPoints - Number of pain points marked on diagram
  * @param formData - User's form responses
@@ -203,18 +203,25 @@ function buildResourcesContext(muscleLabels: string[]): string {
 export function buildAnalysisPrompt(
   muscleLabels: string[],
   painPointCount: number,
-  formData: PromptFormData
+  formData: PromptFormData,
 ): string {
-  const urgencyHint = formData.painLevel >= 7 ? 'high' : formData.painLevel >= 4 ? 'moderate' : 'low';
-  
+  const urgencyHint =
+    formData.painLevel >= 7
+      ? "high"
+      : formData.painLevel >= 4
+        ? "moderate"
+        : "low";
+
   const expertContext = buildExpertContext(muscleLabels);
   const resourcesContext = buildResourcesContext(muscleLabels);
-  
+
   const hasStory = formData.story && formData.story.trim().length > 0;
-  const hasTriggersInfo = formData.triggersAndRelief && formData.triggersAndRelief.trim().length > 0;
-  const hasTriedInfo = formData.triedSoFar && formData.triedSoFar.trim().length > 0;
+  const hasTriggersInfo =
+    formData.triggersAndRelief && formData.triggersAndRelief.trim().length > 0;
+  const hasTriedInfo =
+    formData.triedSoFar && formData.triedSoFar.trim().length > 0;
   const hasProgress = formData.progress && formData.progress.trim().length > 0;
-  
+
   return `${SYSTEM_CONTEXT}
 
 ${EMPATHY_GUIDELINES}
@@ -229,34 +236,50 @@ ${resourcesContext}
 
 PATIENT ASSESSMENT DATA:
 
-Affected Areas: ${muscleLabels?.join(', ') || 'Not specified'}
+Affected Areas: ${muscleLabels?.join(", ") || "Not specified"}
 Pain Level: ${formData.painLevel}/10
 Concern Level: ${formData.concernLevel || 5}/10
-Pain Types: ${formData.painTypes?.join(', ') || 'Not specified'}
-Frequency: ${formData.frequency || 'Not specified'}
-Duration: ${formData.duration || 'Not specified'}
-Pain Timing: ${formData.timing || 'Not specified'}
+Pain Types: ${formData.painTypes?.join(", ") || "Not specified"}
+Frequency: ${formData.frequency || "Not specified"}
+Duration: ${formData.duration || "Not specified"}
+Pain Timing: ${formData.timing || "Not specified"}
 
-${hasStory ? `THEIR STORY (important - reference this specifically):
-"${formData.story}"` : ''}
+${
+  hasStory
+    ? `THEIR STORY (important - reference this specifically):
+"${formData.story}"`
+    : ""
+}
 
-${hasTriggersInfo ? `WHAT TRIGGERS/RELIEVES IT:
-"${formData.triggersAndRelief}"` : ''}
+${
+  hasTriggersInfo
+    ? `WHAT TRIGGERS/RELIEVES IT:
+"${formData.triggersAndRelief}"`
+    : ""
+}
 
-${hasTriedInfo ? `WHAT THEY'VE TRIED:
-"${formData.triedSoFar}"` : ''}
+${
+  hasTriedInfo
+    ? `WHAT THEY'VE TRIED:
+"${formData.triedSoFar}"`
+    : ""
+}
 
-${hasProgress ? `HOW IT'S BEEN PROGRESSING:
-"${formData.progress}"` : ''}
+${
+  hasProgress
+    ? `HOW IT'S BEEN PROGRESSING:
+"${formData.progress}"`
+    : ""
+}
 
-Pain worsens with: ${formData.worsenFactors?.join(', ') || 'Not specified'}
-Pain improves with: ${formData.improveFactors?.join(', ') || 'Not specified'}
-Injury History: ${formData.injuryHistory || 'None reported'}
-Medical History: ${formData.medicalHistory || 'None reported'}
-Current Medications: ${formData.medications || 'None reported'}
-Activities Affected: ${formData.activitiesAffected?.join(', ') || 'Not specified'}
-Patient Goals: ${formData.goals || 'Not specified'}
-Concern Reason: ${formData.concernReason || 'Not specified'}
+Pain worsens with: ${formData.worsenFactors?.join(", ") || "Not specified"}
+Pain improves with: ${formData.improveFactors?.join(", ") || "Not specified"}
+Injury History: ${formData.injuryHistory || "None reported"}
+Medical History: ${formData.medicalHistory || "None reported"}
+Current Medications: ${formData.medications || "None reported"}
+Activities Affected: ${formData.activitiesAffected?.join(", ") || "Not specified"}
+Patient Goals: ${formData.goals || "Not specified"}
+Concern Reason: ${formData.concernReason || "Not specified"}
 Number of pain points marked: ${painPointCount}
 
 ---
@@ -264,7 +287,7 @@ Number of pain points marked: ${painPointCount}
 Generate a comprehensive, EMPATHETIC analysis. Remember:
 - The summary must reference their specific story and make them feel heard
 - Use "${urgencyHint}" as the urgency level
-- For reassurance title, use "${urgencyHint === 'high' ? 'A Silver Lining' : 'The Good News'}"
+- For reassurance title, use "${urgencyHint === "high" ? "A Silver Lining" : "The Good News"}"
 - Include specific expert resources from the knowledge provided above
 - Recovery principles should explain the "why", not just list exercises
 - Be warm, be human, be hopeful
@@ -277,8 +300,11 @@ ${RESPONSE_SCHEMA_DESCRIPTION}`;
  * Fallback prompt for when the main analysis fails
  * Simpler structure for reliability
  */
-export function buildFallbackPrompt(muscleLabels: string[], painLevel: number): string {
-  return `You are a compassionate pain assessment companion. A patient has ${muscleLabels.join(', ')} pain rated ${painLevel}/10.
+export function buildFallbackPrompt(
+  muscleLabels: string[],
+  painLevel: number,
+): string {
+  return `You are a compassionate pain assessment companion. A patient has ${muscleLabels.join(", ")} pain rated ${painLevel}/10.
 
 Provide a brief, empathetic analysis with:
 1. A warm summary acknowledging their situation
@@ -310,29 +336,40 @@ export function buildDiaryPrompt(
     selectedMuscles: string[];
     createdAt: Date;
   },
-  recentEntries: Array<{ painLevel: number | null; entryType: string; createdAt: Date }>
+  recentEntries: Array<{
+    painLevel: number | null;
+    entryType: string;
+    createdAt: Date;
+  }>,
 ): string {
   // Calculate trend from recent entries
   const recentPainLevels = recentEntries
-    .filter(e => e.painLevel !== null)
-    .map(e => e.painLevel as number);
+    .filter((e) => e.painLevel !== null)
+    .map((e) => e.painLevel as number);
 
-  const avgPain = recentPainLevels.length > 0
-    ? (recentPainLevels.reduce((a, b) => a + b, 0) / recentPainLevels.length).toFixed(1)
-    : 'N/A';
+  const avgPain =
+    recentPainLevels.length > 0
+      ? (
+          recentPainLevels.reduce((a, b) => a + b, 0) / recentPainLevels.length
+        ).toFixed(1)
+      : "N/A";
 
-  let trend = 'stable';
+  let trend = "stable";
   if (recentPainLevels.length >= 2) {
-    const recentAvg = recentPainLevels.slice(0, Math.ceil(recentPainLevels.length / 2))
-      .reduce((a, b) => a + b, 0) / Math.ceil(recentPainLevels.length / 2);
-    const olderAvg = recentPainLevels.slice(Math.ceil(recentPainLevels.length / 2))
-      .reduce((a, b) => a + b, 0) / Math.floor(recentPainLevels.length / 2);
+    const recentAvg =
+      recentPainLevels
+        .slice(0, Math.ceil(recentPainLevels.length / 2))
+        .reduce((a, b) => a + b, 0) / Math.ceil(recentPainLevels.length / 2);
+    const olderAvg =
+      recentPainLevels
+        .slice(Math.ceil(recentPainLevels.length / 2))
+        .reduce((a, b) => a + b, 0) / Math.floor(recentPainLevels.length / 2);
 
-    if (recentAvg < olderAvg - 0.5) trend = 'improving';
-    else if (recentAvg > olderAvg + 0.5) trend = 'worsening';
+    if (recentAvg < olderAvg - 0.5) trend = "improving";
+    else if (recentAvg > olderAvg + 0.5) trend = "worsening";
   }
 
-  const primaryBodyPart = assessment.selectedMuscles?.[0] || 'affected area';
+  const primaryBodyPart = assessment.selectedMuscles?.[0] || "affected area";
   const assessmentDate = new Date(assessment.createdAt).toLocaleDateString();
 
   return `You are a compassionate, expert recovery coach helping someone with their ${primaryBodyPart} pain. You have deep knowledge of pain science, physiotherapy, and rehabilitation - and you genuinely care about this person's wellbeing.
@@ -349,23 +386,30 @@ EXPERT KNOWLEDGE TO DRAW FROM:
 - Movement principles (Dr. Stuart McGill, Kelly Starrett): Spine hygiene, movement quality, gradual loading
 - Recovery mindset: Progress isn't linear. Setbacks are normal. Consistency beats intensity.
 
+REASONING APPROACH:
+- When they describe pain with a specific movement, try to identify which structure(s) might be involved
+- Explain the biomechanical "why" - what makes this exercise load differently than others they tolerated?
+- Use hedged but specific language: "This sounds like it could be...", "One possibility worth considering is...", "The pattern suggests..."
+- Connect anatomy to their specific situation - don't just name a structure, explain why it would hurt in THIS movement
+- Always caveat: "...but worth confirming with your physio/doctor if it persists"
+
 CONTEXT FROM THEIR ASSESSMENT (${assessmentDate}):
-- Body part: ${assessment.selectedMuscles?.join(', ') || 'Not specified'}
-- Initial pain level: ${assessment.formData?.painLevel || 'N/A'}/10
-- Goals: ${assessment.formData?.goals || 'Not specified'}
-- What helps: ${assessment.formData?.improveFactors?.join(', ') || assessment.formData?.triggersAndRelief || 'Not specified'}
-- Triggers: ${assessment.formData?.worsenFactors?.join(', ') || 'Not specified'}
-- Their story: ${assessment.formData?.story?.slice(0, 300) || 'Not provided'}
-- Key insight from analysis: ${assessment.analysis?.reassurance?.message?.slice(0, 300) || 'Focus on gradual, consistent progress'}
+- Body part: ${assessment.selectedMuscles?.join(", ") || "Not specified"}
+- Initial pain level: ${assessment.formData?.painLevel || "N/A"}/10
+- Goals: ${assessment.formData?.goals || "Not specified"}
+- What helps: ${assessment.formData?.improveFactors?.join(", ") || assessment.formData?.triggersAndRelief || "Not specified"}
+- Triggers: ${assessment.formData?.worsenFactors?.join(", ") || "Not specified"}
+- Their story: ${assessment.formData?.story?.slice(0, 300) || "Not provided"}
+- Key insight from analysis: ${assessment.analysis?.reassurance?.message?.slice(0, 300) || "Focus on gradual, consistent progress"}
 
 RECENT DIARY TREND (last ${recentEntries.length} entries):
 - Average pain: ${avgPain}/10
 - Trend: ${trend}
-- Entry types: ${recentEntries.map(e => e.entryType).join(', ')}
+- Entry types: ${recentEntries.map((e) => e.entryType).join(", ")}
 
 TODAY'S ENTRY:
 - Type: ${entry.entryType}
-- Pain level: ${entry.painLevel || 'Not specified'}/10
+- Pain level: ${entry.painLevel || "Not specified"}/10
 - Entry: "${entry.entryText}"
 
 RESPONSE GUIDELINES:
@@ -373,16 +417,16 @@ RESPONSE GUIDELINES:
 2. Be warm and conversational - like a knowledgeable friend who cares
 3. Reference their specific situation (body part, goals, what helps them)
 4. Provide substantive guidance with the "why" - don't just give surface-level responses
-5. For PAIN entries: Explain what might be happening, normalize fluctuations, remind them of what helps
+5. For PAIN entries: Attempt to identify what structure might be affected based on the movement pattern and pain description. Explain the biomechanical reasoning - why would THIS exercise cause issues when others didn't? Then normalize, reassure, and remind them what helps. Frame as pattern-matching, not diagnosis.
 6. For WORKOUT questions: Give specific guidance based on their triggers and safe activities
 7. For QUESTIONS about their condition: Answer with compassion and expertise
 8. For PROGRESSION: Celebrate wins, acknowledge struggles, encourage sustainable pacing
 9. Use "you" language and reference their actual story
-10. Aim for 150-250 words - enough to be truly helpful
+10. Aim for 250-450 words - enough to be truly helpful
 
 BOUNDARIES (handle with care, not dismissiveness):
 - Physical pain focus: If they mention emotional struggles, acknowledge warmly and connect how they relate to physical recovery
-- No specific diagnoses or medication advice: "That's definitely worth discussing with your doctor - they can assess..."
+- Only make educated guesses for conditions but clarify that they need to discuss with their physio or doctor: "That's definitely worth discussing with your doctor - they can assess..."
 - For urgent concerns: "This sounds like something to check with your doctor soon - better safe than sorry"
 
 Remember: They're trusting you as their recovery companion. Be the supportive, knowledgeable guide they need.
@@ -409,11 +453,11 @@ export function buildInsightsPrompt(
     formData: any;
     selectedMuscles: string[];
     createdAt: Date;
-  }
+  },
 ): string {
   // Calculate date range
-  const sortedEntries = [...entries].sort((a, b) =>
-    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  const sortedEntries = [...entries].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
   const oldestEntry = sortedEntries[0];
   const newestEntry = sortedEntries[sortedEntries.length - 1];
@@ -421,28 +465,30 @@ export function buildInsightsPrompt(
 
   // Calculate time span in days
   const timeSpanDays = Math.ceil(
-    (new Date(newestEntry.createdAt).getTime() - new Date(oldestEntry.createdAt).getTime()) /
-    (1000 * 60 * 60 * 24)
+    (new Date(newestEntry.createdAt).getTime() -
+      new Date(oldestEntry.createdAt).getTime()) /
+      (1000 * 60 * 60 * 24),
   );
 
-  const primaryBodyPart = assessment.selectedMuscles?.[0] || 'affected area';
+  const primaryBodyPart = assessment.selectedMuscles?.[0] || "affected area";
   const assessmentDate = new Date(assessment.createdAt).toLocaleDateString();
-  const initialPainLevel = assessment.formData?.painLevel || 'N/A';
+  const initialPainLevel = assessment.formData?.painLevel || "N/A";
 
   // Build entries summary
   const entriesSummary = entries
     .map((entry, index) => {
       const date = new Date(entry.createdAt).toLocaleDateString();
       const daysFromFirst = Math.ceil(
-        (new Date(entry.createdAt).getTime() - new Date(oldestEntry.createdAt).getTime()) /
-        (1000 * 60 * 60 * 24)
+        (new Date(entry.createdAt).getTime() -
+          new Date(oldestEntry.createdAt).getTime()) /
+          (1000 * 60 * 60 * 24),
       );
       return `Entry ${index + 1} (Day ${daysFromFirst}, ${date}):
 - Type: ${entry.entryType}
-- Pain level: ${entry.painLevel || 'Not specified'}
+- Pain level: ${entry.painLevel || "Not specified"}
 - Note: "${entry.entryText}"`;
     })
-    .join('\n\n');
+    .join("\n\n");
 
   return `You are a compassionate recovery coach analyzing a user's diary entries to provide insights about their ${primaryBodyPart} pain recovery journey.
 
@@ -453,10 +499,10 @@ CRITICAL CONTEXT - TIME AWARENESS:
 - Pay attention to time gaps - did they stop logging because they felt better? Or worse?
 
 ASSESSMENT BASELINE (${assessmentDate}):
-- Body part: ${assessment.selectedMuscles?.join(', ') || 'Not specified'}
+- Body part: ${assessment.selectedMuscles?.join(", ") || "Not specified"}
 - Initial pain level: ${initialPainLevel}/10
-- Goals: ${assessment.formData?.goals || 'Not specified'}
-- What helps: ${assessment.formData?.improveFactors?.join(', ') || 'Not specified'}
+- Goals: ${assessment.formData?.goals || "Not specified"}
+- What helps: ${assessment.formData?.improveFactors?.join(", ") || "Not specified"}
 
 DIARY ENTRIES TO ANALYZE:
 ${entriesSummary}
@@ -494,4 +540,3 @@ Return a JSON object with this exact structure:
 
 Be warm, be specific, be helpful. This is about helping them understand their recovery journey.`;
 }
-

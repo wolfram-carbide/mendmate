@@ -17,6 +17,7 @@ interface DiaryEntry {
   assessmentId: number;
   entryType: EntryType;
   painLevel: number | null;
+  sentiment: number | null;
   entryText: string;
   aiResponse: string | null;
   createdAt: string;
@@ -81,6 +82,7 @@ export default function DiaryPage() {
 
   const [selectedType, setSelectedType] = useState<EntryType>("pain");
   const [painLevel, setPainLevel] = useState<number | null>(null);
+  const [sentiment, setSentiment] = useState<number | null>(null);
   const [entryText, setEntryText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
@@ -105,6 +107,7 @@ export default function DiaryPage() {
       assessmentId: number;
       entryType: EntryType;
       painLevel: number | null;
+      sentiment: number | null;
       entryText: string;
       requestAiFeedback: boolean;
     }) => {
@@ -125,6 +128,7 @@ export default function DiaryPage() {
       queryClient.invalidateQueries({ queryKey: [`/api/diary/entries?assessmentId=${assessmentId}`] });
       setEntryText("");
       setPainLevel(null);
+      setSentiment(null);
       toast({ title: "Entry saved successfully" });
     },
     onError: () => {
@@ -165,6 +169,7 @@ export default function DiaryPage() {
         assessmentId,
         entryType: selectedType,
         painLevel,
+        sentiment,
         entryText: entryText.trim(),
         requestAiFeedback,
       });
@@ -394,6 +399,30 @@ export default function DiaryPage() {
             </div>
           </div>
 
+          {/* Sentiment Slider (Optional) */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              How I'm feeling (Optional): {sentiment !== null ? ["😤 Frustrated", "😔 Struggling", "😐 Neutral", "🙂 Hopeful", "😊 Confident"][sentiment - 1] : "Not set"}
+            </label>
+            <div className="flex items-center gap-4">
+              <Slider
+                value={sentiment !== null ? [sentiment] : [3]}
+                onValueChange={(value) => setSentiment(value[0])}
+                max={5}
+                min={1}
+                step={1}
+                className="flex-1"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSentiment(null)}
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+
           {/* Entry Text */}
           <div className="space-y-2">
             <Textarea
@@ -456,13 +485,18 @@ export default function DiaryPage() {
               <Card key={entry.id} className="border-l-4 border-primary">
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge className={entryConfig.color}>
                         <EntryIcon className="mr-1 h-3 w-3" />
                         {entryConfig.label}
                       </Badge>
                       {entry.painLevel && (
                         <Badge variant="outline">Pain: {entry.painLevel}/10</Badge>
+                      )}
+                      {entry.sentiment && (
+                        <Badge variant="outline">
+                          {["😤 Frustrated", "😔 Struggling", "😐 Neutral", "🙂 Hopeful", "😊 Confident"][entry.sentiment - 1]}
+                        </Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-2">

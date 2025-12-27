@@ -162,7 +162,7 @@ export async function registerRoutes(
   app.post("/api/diary/entries", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { assessmentId, entryType, painLevel, entryText, requestAiFeedback } = req.body;
+      const { assessmentId, entryType, painLevel, sentiment, entryText, requestAiFeedback } = req.body;
 
       // Validate basic entry data
       const validatedData = insertDiaryEntrySchema.parse({
@@ -170,6 +170,7 @@ export async function registerRoutes(
         assessmentId,
         entryType,
         painLevel,
+        sentiment,
         entryText,
       });
 
@@ -186,13 +187,20 @@ export async function registerRoutes(
         try {
           // Get recent entries for context
           const recentEntries = await storage.getDiaryEntriesByAssessment(assessmentId, userId);
-          const last7Entries = recentEntries.slice(0, 7);
+          const last7Entries = recentEntries.slice(0, 7).map(e => ({
+            painLevel: e.painLevel,
+            sentiment: e.sentiment,
+            entryType: e.entryType,
+            entryText: e.entryText,
+            createdAt: e.createdAt
+          }));
 
           // Build prompt
           const prompt = buildDiaryPrompt(
-            { entryType, painLevel, entryText },
+            { entryType, painLevel, sentiment, entryText },
             assessment,
-            last7Entries
+            last7Entries,
+            false // isFollowUp = false for initial entries
           );
 
           // Call Claude

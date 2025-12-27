@@ -87,6 +87,7 @@ export const diaryEntries = pgTable("diary_entries", {
   assessmentId: integer("assessment_id").references(() => assessments.id).notNull(),
   entryType: varchar("entry_type").notNull(), // "pain" | "workout" | "progression" | "general"
   painLevel: integer("pain_level"), // 1-10, nullable
+  sentiment: integer("sentiment"), // 1-5 scale, nullable
   entryText: varchar("entry_text", { length: 5000 }).notNull(),
   aiResponse: varchar("ai_response", { length: 5000 }), // nullable - only if user requested AI feedback
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -117,6 +118,7 @@ export const insertDiaryEntrySchema = z.object({
   assessmentId: z.number(),
   entryType: z.enum(["pain", "workout", "progression", "general"]),
   painLevel: z.number().min(1).max(10).nullable().optional(),
+  sentiment: z.number().min(1).max(5).nullable().optional(),
   entryText: z.string().min(1).max(5000),
   aiResponse: z.string().max(5000).nullable().optional(),
 });

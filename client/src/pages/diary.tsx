@@ -305,11 +305,15 @@ export default function DiaryPage() {
               entryType: selectedType,
               entryText: entryText.trim(),
               painLevel,
+              sentiment,
+              recentEntries: entries.slice(0, 10),
               assessment: {
                 selectedMuscles: assessment.selectedMuscles,
                 painLevel: assessment.formData?.painLevel,
                 goals: assessment.formData?.goals,
                 analysis: assessment.analysis,
+                createdAt: assessment.createdAt,
+                ...assessment.formData,
               }
             }),
           });
@@ -413,14 +417,17 @@ export default function DiaryPage() {
             entryType: entry.entryType,
             entryText: entry.entryText,
             painLevel: entry.painLevel,
+            sentiment: entry.sentiment,
           },
-          originalResponse: entry.aiResponse,
           followUpQuestion: question,
+          recentEntries: entries.slice(0, 10),
           assessment: {
             selectedMuscles: assessment.selectedMuscles,
             painLevel: assessment.formData?.painLevel,
             goals: assessment.formData?.goals,
             analysis: assessment.analysis,
+            createdAt: assessment.createdAt,
+            ...assessment.formData,
           }
         }),
       });

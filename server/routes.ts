@@ -592,7 +592,7 @@ export async function registerRoutes(
     try {
       const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
       const rateCheck = checkRateLimit(clientIp);
-      
+
       if (!rateCheck.allowed) {
         return res.status(429).json({
           error: "Rate limit exceeded",
@@ -601,7 +601,7 @@ export async function registerRoutes(
         });
       }
 
-      const { entryType, entryText, painLevel, assessment } = req.body;
+      const { entryType, entryText, painLevel, sentiment, assessment, recentEntries } = req.body;
 
       if (!entryText || !assessment) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -612,27 +612,33 @@ export async function registerRoutes(
         baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
       });
 
-      const prompt = `You are a supportive recovery companion helping someone track their pain recovery journey.
-
-Context about their condition:
-- Pain areas: ${assessment.selectedMuscles?.join(', ') || 'Not specified'}
-- Original pain level: ${assessment.painLevel || 'Not specified'}/10
-- Their goals: ${assessment.goals || 'Not specified'}
-
-Their diary entry (type: ${entryType || 'general'}):
-"${entryText}"
-${painLevel !== null ? `Current pain level: ${painLevel}/10` : ''}
-
-Provide a brief, warm, and encouraging response (2-3 sentences) that:
-1. Acknowledges their specific experience mentioned in the entry
-2. Offers one relevant insight or gentle encouragement based on their journey
-3. Maintains a supportive, non-clinical tone
-
-Keep it conversational and human. Don't use medical jargon or give specific medical advice.`;
+      // Use the enhanced buildDiaryPrompt function
+      const prompt = buildDiaryPrompt(
+        {
+          entryType: entryType || 'general',
+          painLevel: painLevel !== undefined ? painLevel : null,
+          sentiment: sentiment !== undefined ? sentiment : null,
+          entryText,
+        },
+        {
+          formData: assessment,
+          analysis: assessment.analysis || {},
+          selectedMuscles: assessment.selectedMuscles || [],
+          createdAt: new Date(assessment.createdAt || Date.now()),
+        },
+        (recentEntries || []).slice(0, 10).map((e: any) => ({
+          painLevel: e.painLevel !== undefined ? e.painLevel : null,
+          sentiment: e.sentiment !== undefined ? e.sentiment : null,
+          entryType: e.entryType || 'general',
+          entryText: e.entryText || '',
+          createdAt: new Date(e.createdAt || Date.now()),
+        })),
+        false // isFollowUp = false for initial entries
+      );
 
       const message = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
-        max_tokens: 300,
+        max_tokens: 1024,
         messages: [{ role: "user", content: prompt }],
       });
 
@@ -644,9 +650,9 @@ Keep it conversational and human. Don't use medical jargon or give specific medi
       res.json({ feedback: content.text.trim() });
     } catch (error: any) {
       console.error("Diary AI feedback error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to generate feedback",
-        message: error.message 
+        message: error.message
       });
     }
   });
@@ -656,7 +662,7 @@ Keep it conversational and human. Don't use medical jargon or give specific medi
     try {
       const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
       const rateCheck = checkRateLimit(clientIp);
-      
+
       if (!rateCheck.allowed) {
         return res.status(429).json({
           error: "Rate limit exceeded",
@@ -665,7 +671,7 @@ Keep it conversational and human. Don't use medical jargon or give specific medi
         });
       }
 
-      const { originalEntry, originalResponse, followUpQuestion, assessment } = req.body;
+      const { originalEntry, originalResponse, followUpQuestion, assessment, recentEntries } = req.body;
 
       if (!followUpQuestion || !originalEntry || !assessment) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -676,34 +682,33 @@ Keep it conversational and human. Don't use medical jargon or give specific medi
         baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
       });
 
-      const prompt = `You are a compassionate, expert recovery coach continuing a conversation with someone about their ${assessment.selectedMuscles?.[0] || 'pain'}.
-
-CONVERSATION CONTEXT:
-Their original diary entry: "${originalEntry.entryText}"
-${originalEntry.painLevel ? `Pain level: ${originalEntry.painLevel}/10` : ''}
-
-Your previous response: "${originalResponse}"
-
-Their follow-up question: "${followUpQuestion}"
-
-THEIR ASSESSMENT CONTEXT:
-- Pain areas: ${assessment.selectedMuscles?.join(', ') || 'Not specified'}
-- Original pain level: ${assessment.painLevel || 'N/A'}/10
-- Goals: ${assessment.goals || 'Not specified'}
-
-INSTRUCTIONS:
-- Directly answer their follow-up question with specificity
-- If they're asking about anatomy or what might be affected, offer educated guesses with appropriate hedging ("this could involve...", "one possibility is...")
-- Reference their specific situation and body parts
-- Keep response focused and helpful (150-250 words)
-- Maintain warmth while being substantive
-- Always encourage them to verify with their healthcare provider if the concern persists
-
-Respond naturally and helpfully.`;
+      // Use the enhanced buildDiaryPrompt function with isFollowUp = true
+      const prompt = buildDiaryPrompt(
+        {
+          entryType: originalEntry.entryType || 'general',
+          painLevel: originalEntry.painLevel !== undefined ? originalEntry.painLevel : null,
+          sentiment: originalEntry.sentiment !== undefined ? originalEntry.sentiment : null,
+          entryText: followUpQuestion, // The follow-up question becomes the entry text
+        },
+        {
+          formData: assessment,
+          analysis: assessment.analysis || {},
+          selectedMuscles: assessment.selectedMuscles || [],
+          createdAt: new Date(assessment.createdAt || Date.now()),
+        },
+        (recentEntries || []).slice(0, 10).map((e: any) => ({
+          painLevel: e.painLevel !== undefined ? e.painLevel : null,
+          sentiment: e.sentiment !== undefined ? e.sentiment : null,
+          entryType: e.entryType || 'general',
+          entryText: e.entryText || '',
+          createdAt: new Date(e.createdAt || Date.now()),
+        })),
+        true // isFollowUp = true for follow-up questions
+      );
 
       const message = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
-        max_tokens: 500,
+        max_tokens: 1024,
         messages: [{ role: "user", content: prompt }],
       });
 
@@ -715,9 +720,9 @@ Respond naturally and helpfully.`;
       res.json({ feedback: content.text.trim() });
     } catch (error: any) {
       console.error("Diary follow-up error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to generate follow-up response",
-        message: error.message 
+        message: error.message
       });
     }
   });
